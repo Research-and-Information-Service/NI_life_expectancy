@@ -2,153 +2,206 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NI DEA Life Expectancy Map</title>
-<style>
-  body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-  }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NI DEA Life Expectancy Map</title>
 
-  /* Map container */
-  #map {
-    width: 100%;
-    height: 100vh;
-  }
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
 
-  /* Sidebar styling */
-  #sidebar {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 320px;
-    background: #f9f9f9;
-    border-left: 1px solid #ccc;
-    padding: 12px;
-    box-sizing: border-box;
-    height: 100%;
-    overflow-y: auto;
-    display: none; /* Hidden until JS shows it */
-    z-index: 1000;
-  }
+    /* Map container */
+    #map {
+      width: 100%;
+      height: 100vh;
+    }
 
-  visible state */
-  #sidebar.active {
-    display: block;
-  }
+    /* Sidebar styling: hidden off-screen, slides in when .open is added */
+    #sidebar {
+      position: fixed;
+      top: 0;
+      right: -340px;              /* keep off-screen by default */
+      width: 320px;
+      height: 100vh;
+      background: #f9f9f9;
+      border-left: 1px solid #ccc;
+      padding: 12px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      z-index: 1000;
+      transition: right 0.25s ease;
+    }
 
-  #close-sidebar {
-    float: right;
-    margin-left: 8px;
-    background: #0078d7;
-    color: #fff;
-    border: none;
-    padding: 6px 10px;
-    cursor: pointer;
-    border-radius: 4px;
-  }
+    /* Visible state */
+    #sidebar.open {
+      right: 0;
+    }
 
-  #sidebar-title {
-    margin: 0 0 10px 0;
-    font-weight: 600;
-  }
+    #close-sidebar {
+      float: right;
+      margin-left: 8px;
+      background: #0078d7;
+      color: #fff;
+      border: none;
+      padding: 6px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
 
-  #sidebar-meta {
-    margin-bottom: 10px;
-  }
+    #sidebar-title {
+      margin: 0 0 10px 0;
+      font-weight: 600;
+    }
 
-  #chart-container {
-    margin-top: 8px;
-  }
+    #sidebar-meta {
+      margin-bottom: 10px;
+    }
 
-  canvas {
-    width: 100%;
-    height: auto;
-  }
-</style>
+    #chart-container {
+      margin-top: 8px;
+      /* Make chart fill sidebar height nicely if needed */
+      min-height: 240px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 280px;             /* fixed height for Chart.js inside the sidebar */
+    }
+  </style>
 </head>
 <body>
 
-<!-- Map -->
-<div id="map"></div>
+  <!-- Map -->
+  <div id="map"></div>
 
-<!-- Sidebar -->
-<div id="sidebar">
-  <button id="close-sidebar" class="small">Close</button>
-  <h3 id="sidebar-title">DEA details</h3>
-  <div id="sidebar-meta"></div>
-  <div id="chart-container">
-    <canvas id="deaChart"></canvas>
+  <!-- Sidebar (buttons removed) -->
+  <div id="sidebar">
+    <button id="close-sidebar" class="small">Close</button>
+    <h3 id="sidebar-title">DEA details</h3>
+    <div id="sidebar-meta"></div>
+    <div id="chart-container">
+      <canvas id="deaChart"></canvas>
+    </div>
   </div>
-  <!-- Buttons removed -->
-</div>
 
-<!-- Scripts -->
-<script/cdn.jsdelivr.net/npm/chart.js</script>
-https://unpkg.com/leaflet/dist/leaflet.js</script>
-<script>
-  // Initialize map
-  const map = L.map('map').setView([54.6, -6.7], 8); // Adjust center/zoom for NI
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
+  <!-- Scripts: Chart.js + Leaflet -->
+  https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js</script>
+  https://unpkg.com/leaflet/dist/leaflet.js</script>
 
-  // Sidebar logic
-  const sidebar = document.getElementById('sidebar');
-  const closeBtn = document.getElementById('close-sidebar');
+  <script>
+    // Initialize map (adjust centre/zoom for NI as you prefer)
+    const map = L.map('map').setView([54.6, -6.7], 8);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
-  closeBtn.addEventListener('click', () => {
-    sidebar.classList.remove('active');
-  });
+    // Sidebar controls
+    const sidebar = document.getElementById('sidebar');
+    const closeBtn = document.getElementById('close-sidebar');
+    const titleEl = document.getElementById('sidebar-title');
+    const metaEl  = document.getElementById('sidebar-meta');
 
-  // Example DEA layer (replace with your GeoJSON)
-  // When a DEA is clicked, show sidebar and update content
-  const exampleGeoJSON = {
-    "type": "FeatureCollection",
-    "features": [
-      {
-        "type": "Feature",
-        "properties": { "name": "Example DEA" },
-        "geometry": {
-          "type": "Polygon",
-          "coordinates": [[[-6.7,54.6],[-6.6,54.6],[-6.6,54.7],[-6.7,54.7],[-6.7,54.6]]]
+    closeBtn.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+    });
+
+    function openSidebarWithFeature(feature) {
+      // Update content from feature properties
+      titleEl.textContent = feature?.properties?.name ?? 'DEA details';
+      metaEl.innerHTML = `
+        <p><strong>DEA:</strong> ${feature?.properties?.name ?? '—'}</p>
+        <!-- Add any other properties you want to show here -->
+      `;
+      // Show the sidebar
+      sidebar.classList.add('open');
+
+      // Update the chart placeholder (example)
+      deaChart.data.labels = ['2001', '2006', '2011', '2016', '2021'];
+      deaChart.data.datasets = [{
+        label: 'Life Expectancy',
+        data: [76.8, 77.5, 78.3, 79.2, 79.8],
+        borderColor: '#0078d7',
+        tension: 0.25,
+        fill: false
+      }];
+      deaChart.update();
+    }
+
+    // Chart.js initialization
+    const ctx = document.getElementById('deaChart').getContext('2d');
+    const deaChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { title: { display: true, text: 'Years' } },
+          x: { title: { display: true, text: 'Year' } }
         }
       }
-    ]
-  };
+    });
 
-  L.geoJSON(exampleGeoJSON, {
-    onEachFeature: function (feature, layer) {
-      layer.on('click', function () {
-        // Show sidebar
-        sidebar.classList.add('active');
+    /******************************************************************
+     * GeoJSON loading
+     * Replace `exampleGeoJSON` with your real GeoJSON path, e.g.:
+     *   fetch('data/dea.geojson').then(r => r.json()).then(addLayer);
+     ******************************************************************/
 
-        // Update sidebar content
-        document.getElementById('sidebar-title').textContent = feature.properties.name;
-        document.getElementById('sidebar-meta').innerHTML = '<p>DEA details go here.</p>';
+    // Placeholder GeoJSON (lon,lat)
+    const exampleGeoJSON = {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "properties": { "name": "Example DEA" },
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+              [-6.7, 54.6], [-6.6, 54.6], [-6.6, 54.7], [-6.7, 54.7], [-6.7, 54.6]
+            ]]
+          }
+        }
+      ]
+    };
 
-        // Update chart (placeholder)
-        deaChart.data.labels = ['Year 1', 'Year 2', 'Year 3'];
-        deaChart.data.datasets = [{
-          label: 'Life Expectancy',
-          data: [78, 79, 80],
-          borderColor: '#0078d7',
-          fill: false
-        }];
-        deaChart.update();
+    addLayer(exampleGeoJSON);
+
+    // If using a real file, uncomment this and set the correct path:
+    // fetch('DEA.geojson') // or 'data/DEA.geojson'
+    //   .then(res => res.json())
+    //   .then(addLayer)
+    //   .catch(err => console.error('Failed to load GeoJSON:', err));
+
+    function addLayer(geojson) {
+      const layer = L.geoJSON(geojson, {
+        style: {
+          color: '#0078d7',
+          weight: 2,
+          fillColor: '#66a3e0',
+          fillOpacity: 0.3
+        },
+        onEachFeature: function (feature, leafletLayer) {
+          // Show the sidebar on hover and click
+          leafletLayer.on('mouseover', () => openSidebarWithFeature(feature));
+          leafletLayer.on('click',     () => openSidebarWithFeature(feature));
+
+          // Optional: highlight on hover
+          leafletLayer.on('mouseover', () => leafletLayer.setStyle({ weight: 3, fillOpacity: 0.4 }));
+          leafletLayer.on('mouseout',  () => leafletLayer.setStyle({ weight: 2, fillOpacity: 0.3 }));
+        }
       });
+      layer.addTo(map);
+      // Fit map to data bounds (optional)
+      try {
+        map.fitBounds(layer.getBounds(), { padding: [20, 20] });
+      } catch (e) {
+        // Some datasets (points-only) may not have bounds; ignore
+      }
     }
-  }).addTo(map);
-
-  // Chart initialization
-  const ctx = document.getElementById('deaChart').getContext('2d');
-  const deaChart = new Chart(ctx, {
-    type: 'line',
-    data: { labels: [], datasets: [] },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
-</script>
-
+  </script>
 </body>
 </html>
