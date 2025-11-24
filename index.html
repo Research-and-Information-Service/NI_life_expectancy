@@ -11,6 +11,7 @@
     font-family: Arial, sans-serif;
   }
 
+  /* Map container */
   #map {
     width: 100%;
     height: 100vh;
@@ -32,6 +33,7 @@
     z-index: 1000;
   }
 
+  visible state */
   #sidebar.active {
     display: block;
   }
@@ -39,55 +41,13 @@
   #close-sidebar {
     float: right;
     margin-left: 8px;
+    background: #0078d7;
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 4px;
   }
 
   #sidebar-title {
     margin: 0 0 10px 0;
-    font-weight: 600;
-  }
-
-  #chart-container {
-    margin-top: 8px;
-  }
-</style>
-</head>
-<body>
-
-<div id="map"></div>
-
-<!-- Sidebar -->
-<div id="sidebar">
-  <button id="close-sidebar" class="small">Close</button>
-  <h3 id="sidebar-title">DEA details</h3>
-  <div id="sidebar-meta"></div>
-  <div id="chart-container">
-    <canvas id="deaChart"></canvas>
-  </div>
-  <!-- Buttons removed -->
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.jsript>
-  // Chart placeholder
-  const ctx = document.getElementById('deaChart').getContext('2d');
-  const deaChart = new Chart(ctx, {
-    type: 'line',
-    data: { labels: [], datasets: [] },
-    options: { responsive: true, maintainAspectRatio: false }
-  });
-
-  // Sidebar toggle logic
-  const sidebar = document.getElementById('sidebar');
-  const closeBtn = document.getElementById('close-sidebar');
-
-  closeBtn.addEventListener('click', () => {
-    sidebar.classList.remove('active');
-  });
-
-  // Example: show sidebar when DEA clicked (replace with your Leaflet logic)
-  // map.on('click', function() {
-  //   sidebar.classList.add('active');
-  // });
-</script>
-
-</body>
-</html>
