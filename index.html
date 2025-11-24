@@ -2,87 +2,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NI DEA Life Expectancy Map</title>
-  <style>
-    /* Basic layout cleanup */
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NI DEA Life Expectancy Map</title>
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+  }
 
-    #sidebar {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 320px;
-      background: #f9f9f9;
-      border-left: 1px solid #ccc;
-      padding: 12px;
-      box-sizing: border-box;
-      height: 100vh;
-      overflow-y: auto;
-    }
+  /* Map takes full width */
+  #map {
+    width: 100%;
+    height: 100vh;
+    background: #eaeaea; /* placeholder */
+  }
 
-    #close-sidebar {
-      float: right;
-      margin-left: 8px;
-    }
+  /* Sidebar hidden by default */
+  #sidebar {
+    position: fixed;
+    top: 0;
+    right: -320px; /* hidden off-screen */
+    width: 320px;
+    height: 100vh;
+    background: #f9f9f9;
+    border-left: 1px solid #ccc;
+    padding: 12px;
+    box-sizing: border-box;
+    transition: right 0.3s ease;
+    overflow-y: auto;
+    z-index: 1000;
+  }
 
-    #sidebar-title {
-      margin: 0 0 10px 0;
-      font-weight: 600;
-    }
+  /* Sidebar visible */
+  #sidebar.open {
+    right: 0;
+  }
 
-    #sidebar-meta {
-      margin-bottom: 10px;
-    }
+  #close-sidebar {
+    float: right;
+    margin-left: 8px;
+  }
 
-    #chart-container {
-      margin-top: 8px;
-    }
+  #sidebar-title {
+    margin: 0 0 10px 0;
+    font-weight: 600;
+  }
 
-    canvas {
-      width: 100%;
-      height: auto;
-    }
-  </style>
+  #sidebar-meta {
+    margin-bottom: 10px;
+  }
+
+  #chart-container {
+    margin-top: 8px;
+  }
+
+  /* Trigger button */
+  #sidebar-trigger {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #0078d7;
+    color: #fff;
+    border: none;
+    padding: 10px 14px;
+    cursor: pointer;
+    z-index: 1100;
+    border-radius: 4px;
+  }
+</style>
 </head>
 <body>
-  <!-- Sidebar -->
-  <div id="sidebar">
-    <button id="close-sidebar" class="small">Close</button>
-    <h3 id="sidebar-title">DEA details</h3>
-    <div id="sidebar-meta"></div>
-    <div id="chart-container">
-      <canvas id="deaChart"></canvas>
-    </div>
-    <!-- Buttons removed -->
+
+<!-- Map -->
+<div id="map">Map goes here</div>
+
+<!-- Trigger button -->
+<button id="sidebar-trigger">Show DEA Details</button>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <button id="close-sidebar" class="small">Close</button>
+  <h3 id="sidebar-title">DEA details</h3>
+  <div id="sidebar-meta"></div>
+  <div id="chart-container">
+    <canvas id="deaChart"></canvas>
   </div>
+</div>
 
-  <!-- Add your map container and other elements here -->
-  <div id="map" style="width: calc(100% - 320px); height: 100vh;"></div>
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npmript>
+<script>
+  // Chart placeholder
+  const ctx = document.getElementById('deaChart').getContext('2d');
+  const deaChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [] },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
 
-  <!-- Include your scripts -->
-  https://cdn.jsdelivr.net/npm/chart.js</script>
-  <script>
-    // Example Chart.js initialization (keep your original logic here)
-    const ctx = document.getElementById('deaChart').getContext('2d');
-    const deaChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],
-        datasets: []
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false
-      }
-    });
+  // Sidebar toggle logic
+  const sidebar = document.getElementById('sidebar');
+  const trigger = document.getElementById('sidebar-trigger');
+  const closeBtn = document.getElementById('close-sidebar');
 
-    // Add your map initialization and other JS logic here
-  </script>
+  trigger.addEventListener('click', () => {
+    sidebar.classList.add('open');
+  });
+
+  closeBtn.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+  });
+
+  // Optional: show sidebar on hover over trigger
+  trigger.addEventListener('mouseenter', () => {
+    sidebar.classList.add('open');
+  });
+  sidebar.addEventListener('mouseleave', () => {
+    sidebar.classList.remove('open');
+  });
+</script>
+
 </body>
 </html>
