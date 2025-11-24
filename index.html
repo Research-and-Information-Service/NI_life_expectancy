@@ -110,8 +110,8 @@
   <div id="sidebar-meta"></div>
   <div id="chart-container"><canvas id="deaChart"></canvas></div>
   <div style="margin-top:8px">
-    <button id="download-csv" class="btn">Download CSV</button>
-    <button id="zoom-to" class="btn small" style="background:#555;margin-left:6px">Zoom to DEA</button>
+   // <button id="download-csv" class="btn">Download CSV</button>
+   // <button id="zoom-to" class="btn small" style="background:#555;margin-left:6px">Zoom to DEA</button>
   </div>
 </div>
 
@@ -413,8 +413,8 @@ function populateSidebarFromFeature(feature) {
   });
 
   // wire download and zoom
-  document.getElementById('download-csv').onclick = () => downloadDEADataAsCSV(props);
-  document.getElementById('zoom-to').onclick = () => {
+  //document.getElementById('download-csv').onclick = () => downloadDEADataAsCSV(props);
+ // document.getElementById('zoom-to').onclick = () => {
     // find layer and zoom
     deaLayer.eachLayer(layer => {
       if (layer.feature && layer.feature.properties && layer.feature.properties.DEA_NAME === props.DEA_NAME) {
