@@ -51,3 +51,104 @@
 
   #sidebar-title {
     margin: 0 0 10px 0;
+    font-weight: 600;
+  }
+
+  #sidebar-meta {
+    margin-bottom: 10px;
+  }
+
+  #chart-container {
+    margin-top: 8px;
+  }
+
+  canvas {
+    width: 100%;
+    height: auto;
+  }
+</style>
+</head>
+<body>
+
+<!-- Map -->
+<div id="map"></div>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <button id="close-sidebar" class="small">Close</button>
+  <h3 id="sidebar-title">DEA details</h3>
+  <div id="sidebar-meta"></div>
+  <div id="chart-container">
+    <canvas id="deaChart"></canvas>
+  </div>
+  <!-- Buttons removed -->
+</div>
+
+<!-- Scripts -->
+<script/cdn.jsdelivr.net/npm/chart.js</script>
+https://unpkg.com/leaflet/dist/leaflet.js</script>
+<script>
+  // Initialize map
+  const map = L.map('map').setView([54.6, -6.7], 8); // Adjust center/zoom for NI
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  // Sidebar logic
+  const sidebar = document.getElementById('sidebar');
+  const closeBtn = document.getElementById('close-sidebar');
+
+  closeBtn.addEventListener('click', () => {
+    sidebar.classList.remove('active');
+  });
+
+  // Example DEA layer (replace with your GeoJSON)
+  // When a DEA is clicked, show sidebar and update content
+  const exampleGeoJSON = {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "properties": { "name": "Example DEA" },
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[-6.7,54.6],[-6.6,54.6],[-6.6,54.7],[-6.7,54.7],[-6.7,54.6]]]
+        }
+      }
+    ]
+  };
+
+  L.geoJSON(exampleGeoJSON, {
+    onEachFeature: function (feature, layer) {
+      layer.on('click', function () {
+        // Show sidebar
+        sidebar.classList.add('active');
+
+        // Update sidebar content
+        document.getElementById('sidebar-title').textContent = feature.properties.name;
+        document.getElementById('sidebar-meta').innerHTML = '<p>DEA details go here.</p>';
+
+        // Update chart (placeholder)
+        deaChart.data.labels = ['Year 1', 'Year 2', 'Year 3'];
+        deaChart.data.datasets = [{
+          label: 'Life Expectancy',
+          data: [78, 79, 80],
+          borderColor: '#0078d7',
+          fill: false
+        }];
+        deaChart.update();
+      });
+    }
+  }).addTo(map);
+
+  // Chart initialization
+  const ctx = document.getElementById('deaChart').getContext('2d');
+  const deaChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [] },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+</script>
+
+</body>
+</html>
