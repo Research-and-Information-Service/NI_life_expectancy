@@ -1,0 +1,1 @@
+This repository contains an HTML file built in Leaflet providing an interactive map visualisation showing life expectancy rates in NI over time by DEA, also DEA geojson file used by the resource. For inclusion in a blog post to be published by Grainne Crealey.
