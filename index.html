@@ -11,32 +11,29 @@
     font-family: Arial, sans-serif;
   }
 
-  /* Map takes full width */
   #map {
     width: 100%;
     height: 100vh;
-    background: #eaeaea; /* placeholder */
   }
 
-  /* Sidebar hidden by default */
+  /* Sidebar styling */
   #sidebar {
-    position: fixed;
+    position: absolute;
     top: 0;
-    right: -320px; /* hidden off-screen */
+    right: 0;
     width: 320px;
-    height: 100vh;
     background: #f9f9f9;
     border-left: 1px solid #ccc;
     padding: 12px;
     box-sizing: border-box;
-    transition: right 0.3s ease;
+    height: 100%;
     overflow-y: auto;
+    display: none; /* Hidden until JS shows it */
     z-index: 1000;
   }
 
-  /* Sidebar visible */
-  #sidebar.open {
-    right: 0;
+  #sidebar.active {
+    display: block;
   }
 
   #close-sidebar {
@@ -49,36 +46,14 @@
     font-weight: 600;
   }
 
-  #sidebar-meta {
-    margin-bottom: 10px;
-  }
-
   #chart-container {
     margin-top: 8px;
-  }
-
-  /* Trigger button */
-  #sidebar-trigger {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: #0078d7;
-    color: #fff;
-    border: none;
-    padding: 10px 14px;
-    cursor: pointer;
-    z-index: 1100;
-    border-radius: 4px;
   }
 </style>
 </head>
 <body>
 
-<!-- Map -->
-<div id="map">Map goes here</div>
-
-<!-- Trigger button -->
-<button id="sidebar-trigger">Show DEA Details</button>
+<div id="map"></div>
 
 <!-- Sidebar -->
 <div id="sidebar">
@@ -88,11 +63,10 @@
   <div id="chart-container">
     <canvas id="deaChart"></canvas>
   </div>
+  <!-- Buttons removed -->
 </div>
 
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npmript>
-<script>
+<script src="https://cdn.jsdelivr.net/npm/chart.jsript>
   // Chart placeholder
   const ctx = document.getElementById('deaChart').getContext('2d');
   const deaChart = new Chart(ctx, {
@@ -103,24 +77,16 @@
 
   // Sidebar toggle logic
   const sidebar = document.getElementById('sidebar');
-  const trigger = document.getElementById('sidebar-trigger');
   const closeBtn = document.getElementById('close-sidebar');
 
-  trigger.addEventListener('click', () => {
-    sidebar.classList.add('open');
-  });
-
   closeBtn.addEventListener('click', () => {
-    sidebar.classList.remove('open');
+    sidebar.classList.remove('active');
   });
 
-  // Optional: show sidebar on hover over trigger
-  trigger.addEventListener('mouseenter', () => {
-    sidebar.classList.add('open');
-  });
-  sidebar.addEventListener('mouseleave', () => {
-    sidebar.classList.remove('open');
-  });
+  // Example: show sidebar when DEA clicked (replace with your Leaflet logic)
+  // map.on('click', function() {
+  //   sidebar.classList.add('active');
+  // });
 </script>
 
 </body>
