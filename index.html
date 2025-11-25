@@ -369,7 +369,7 @@
 
   function populateSidebarFromFeature(feature) {
     const props = feature.properties;
-    document.getElementById('sidebar-title').textContent = props.DEA_NAME || 'DEA';
+    document.getElementById('sidebar-title').textContent =   `DEA – ${props.finalr_dea || 'Unknown'}`;
     const curVal = featureValue(feature);
 
     document.getElementById('sidebar-meta').innerHTML = `
