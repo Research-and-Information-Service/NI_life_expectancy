@@ -8,6 +8,7 @@
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
@@ -368,103 +369,100 @@
   }
 
   function populateSidebarFromFeature(feature) {
-    const props = feature.properties;
-    document.getElementById('sidebar-title').textContent =   `DEA – ${props.finalr_dea || 'Unknown'}`;
-    const curVal = featureValue(feature);
+const props = feature.properties;
 
-    document.getElementById('sidebar-meta').innerHTML = `
-      <strong>${selectedSex}</strong><br>
-      Period: ${years[0]} → ${years[years.length - 1]}<br>
-      Current (${years[currentYearIndex]}): ${curVal != null ? round1(curVal) + ' yrs' : 'n/a'}
-    `;
+document.getElementById('sidebar-title').textContent =
+`DEA – ${props.finalr_dea || 'Unknown'}`;
 
-    const ts = (props.data || [])
-      .filter(d => d.Sex === selectedSex)
-      .sort((a, b) => ('' + a.GroupedYear).localeCompare('' + b.GroupedYear));
-    const labels = ts.map(d => d.GroupedYear);
-    const values = ts.map(d => round1(d.Value));
+const curVal = featureValue(feature);
 
-    const niTrend = computeNITrend(selectedSex);
+document.getElementById('sidebar-meta').innerHTML = `     <strong>${selectedSex}</strong><br>
+    Period: ${years[0]} → ${years[years.length - 1]}<br>
+    Current (${years[currentYearIndex]}): ${
+      curVal != null ? round1(curVal) + ' yrs' : 'n/a'
+    }
+  `;
 
- // Destroy existing chart if present
+// Extract time series for this DEA
+const ts = (props.data || [])
+.filter(d => d.Sex === selectedSex)
+.sort((a, b) => ('' + a.GroupedYear).localeCompare('' + b.GroupedYear));
+
+const labels = ts.map(d => d.GroupedYear);
+const values = ts.map(d => round1(d.Value));
+
+const niTrend = computeNITrend(selectedSex);
+
+// Find index of currently selected year
+const selectedIndex = labels.indexOf(years[currentYearIndex]);
+
+// Destroy existing chart if needed
 if (deaChart) deaChart.destroy();
 
 const ctx = document.getElementById('deaChart').getContext('2d');
 
-// Prepare data for the selected DEA
-const labels = ts.map(d => d.GroupedYear);
-const values = ts.map(d => round1(d.Value));
-
-// Global NI trend
-const niTrend = computeNITrend(selectedSex);
-
-// Find index of current selected year (from time slider)
-const selectedIndex = labels.indexOf(years[currentYearIndex]);
-
-// Create the chart
 deaChart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels,
-    datasets: [
-      {
-        label: `${props.finalr_dea} (${selectedSex})`,
-        data: values,
-        tension: 0.3,
-        borderWidth: 2,
-        pointRadius: 3,
-        fill: false,
-        borderColor: '#0078A8'
-      },
-      {
-        label: `Northern Ireland average (${selectedSex})`,
-        data: niTrend,
-        tension: 0.3,
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: false,
-        borderColor: '#888',
-        borderDash: [5, 5]
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      y: {
-        // <<< Adjust these if needed
-        min: 65,
-        max: 90,
-        title: { display: true, text: 'HLE (years)' }
-      },
-      x: {
-        title: { display: true, text: 'Period' }
-      }
-    },
-    plugins: {
-      annotation: {
-        annotations: {
-          currentYearLine: {
-            type: 'line',
-            xMin: selectedIndex,
-            xMax: selectedIndex,
-            borderColor: 'rgba(0,0,0,0.4)',
-            borderWidth: 1,
-            borderDash: [4, 4],
-            label: {
-              enabled: true,
-              content: years[currentYearIndex],
-              position: 'start'
-            }
-          }
-        }
-      }
-    }
-  }
+type: 'line',
+data: {
+labels,
+datasets: [
+{
+label: `${props.finalr_dea} (${selectedSex})`,
+data: values,
+tension: 0.3,
+borderWidth: 2,
+pointRadius: 3,
+fill: false,
+borderColor: '#0078A8'
+},
+{
+label: `Northern Ireland average (${selectedSex})`,
+data: niTrend,
+tension: 0.3,
+borderWidth: 2,
+pointRadius: 0,
+fill: false,
+borderColor: '#888',
+borderDash: [5, 5]
+}
+]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false,
+scales: {
+y: {
+min: 65,
+max: 90,
+title: { display: true, text: 'HLE (years)' }
+},
+x: {
+title: { display: true, text: 'Period' }
+}
+},
+plugins: {
+annotation: {
+annotations: {
+currentYearLine: {
+type: 'line',
+xMin: selectedIndex,
+xMax: selectedIndex,
+borderColor: 'rgba(0,0,0,0.4)',
+borderWidth: 1,
+borderDash: [4, 4],
+label: {
+enabled: true,
+content: years[currentYearIndex],
+position: 'start'
+}
+}
+}
+}
+}
+}
 });
+}
 
-  }
 
   // ========== EVENT HANDLERS ==========
 
