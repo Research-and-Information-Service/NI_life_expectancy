@@ -417,10 +417,15 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        scales: {
-          y: { title: { display: true, text: 'HLE (years)' } },
-          x: { title: { display: true, text: 'Period' } }
-        }
+       scales: {
+  y: {
+    min: 55,
+    max: 90,
+    title: { display: true, text: 'HLE (years)' }
+  },
+  x: { title: { display: true, text: 'Period' } }
+}
+
       }
     });
   }
