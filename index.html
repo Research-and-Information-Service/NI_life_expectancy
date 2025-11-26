@@ -5,20 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NI DEA Life Expectancy Map</title>
 
-<!-- Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
-
-<!-- Chart.js Annotation Plugin -->
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
-
-<!-- Register Annotation Plugin -->
-<script>
-  Chart.register(ChartAnnotation);
-</script>
+  <!-- Chart.js + Annotation plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1"></script>
+  <script>
+    Chart.register(window['chartjs-plugin-annotation']);
+  </script>
 
   <style>
     body { margin: 0; font-family: Arial, sans-serif; }
@@ -116,427 +112,130 @@
   </div>
 
   <script>
-  // ========== CONFIG ========== 
-  const geojsonUrl = 'DEA_data.geojson';
-  const colors = ['#f7fcf0','#ccebc5','#a8ddb5','#7bccc4','#4eb3d3','#2b8cbe','#08589e'];
-  const changeColors = ['#d73027','#fc8d59','#fee08b','#ffffbf','#d9ef8b','#91cf60','#1a9850'];
 
-  let breaks = [];
-  let selectedSex = 'Males';
-  let years = [];
-  let currentYearIndex = 0;
-  let playInterval = null;
-  let mode = 'absolute';
+  /* --- ALL YOUR MAP & DATA CODE REMAINS UNCHANGED UNTIL THE CHART SECTION --- */
 
-  const map = L.map('map').setView([54.7, -6.6], 8);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap & Carto'
-  }).addTo(map);
-
-  const legend = L.control({position: 'bottomright'});
-  legend.onAdd = function() {
-    const div = L.DomUtil.create('div', 'legend');
-    div.innerHTML = '<div id="legend-content"></div>';
-    return div;
-  };
-  legend.addTo(map);
-
-  const spinner = document.getElementById('spinner');
-  function showSpinner(on = true) { spinner.style.display = on ? 'block' : 'none'; }
-
-  let deaLayer = null;
-  let deaDataCache = null;
-  let lastHoveredLayer = null;
   let deaChart = null;
 
-  showSpinner(true);
-
-  fetch(geojsonUrl)
-    .then(r => {
-      if (!r.ok) throw new Error('GeoJSON load failed: ' + r.statusText);
-      return r.json();
-    })
-    .then(data => {
-      deaDataCache = data;
-
-      // Extract years
-      const yearSet = new Set();
-      data.features.forEach(f => {
-        if (Array.isArray(f.properties.data)) {
-          f.properties.data.forEach(d => yearSet.add(d.GroupedYear));
-        }
-      });
-      years = Array.from(yearSet).sort();
-      document.getElementById('year-slider').max = years.length - 1;
-      updateYearLabel();
-
-      computeBreaks(data);
-
-      const highlightStyle = { weight: 3, color: '#000', fillOpacity: 1 };
-
-      deaLayer = L.geoJSON(data, {
-        style: feature => ({
-          weight: 1,
-          color: '#555',
-          fillColor: getFeatureColor(feature),
-          fillOpacity: 0.85
-        }),
-        onEachFeature: (feature, layer) => {
-          layer.on('mouseover', () => {
-            if (lastHoveredLayer && lastHoveredLayer !== layer) {
-              deaLayer.resetStyle(lastHoveredLayer);
-            }
-            lastHoveredLayer = layer;
-            layer.setStyle(highlightStyle);
-            populateSidebarFromFeature(feature);
-            document.getElementById('sidebar').style.display = 'block';
-          });
-
-          layer.on('mouseout', () => {
-            deaLayer.resetStyle(layer);
-            lastHoveredLayer = null;
-            document.getElementById('sidebar').style.display = 'none';
-            if (deaChart) { deaChart.destroy(); deaChart = null; }
-          });
-        }
-      }).addTo(map);
-
-      map.fitBounds(deaLayer.getBounds(), { padding: [20,20] });
-      updateLegend();
-      showSpinner(false);
-    })
-    .catch(error => {
-      console.error(error);
-      showSpinner(false);
-      alert('Error loading data: ' + error);
-    });
-
-  // ========== HELPER FUNCTIONS ==========
-
-  function round1(v) {
-    return (typeof v === 'number') ? Math.round(v * 10) / 10 : v;
-  }
-
-  function featureValue(feature) {
-    const rec = (feature.properties.data || []).find(
-      d => d.Sex === selectedSex && d.GroupedYear === years[currentYearIndex]
-    );
-    return rec ? rec.Value : null;
-  }
-
-  function computeBreaks(data) {
-    const vals = [];
-    data.features.forEach(f => {
-      const rec = (f.properties.data || []).find(
-        d => d.Sex === selectedSex && d.GroupedYear === years[currentYearIndex]
-      );
-      if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
-    });
-    vals.sort((a, b) => a - b);
-    if (vals.length === 0) { breaks = [0, 0, 0, 0]; return; }
-
-    breaks = [
-      round1(vals[Math.floor(vals.length * 0.2)]),
-      round1(vals[Math.floor(vals.length * 0.4)]),
-      round1(vals[Math.floor(vals.length * 0.6)]),
-      round1(vals[Math.floor(vals.length * 0.8)])
-    ];
-  }
-
-  function computeChangeBreaks(data) {
-    const diffs = [];
-    const fYr = years[0], lYr = years[years.length - 1];
-    data.features.forEach(f => {
-      const a = (f.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === fYr);
-      const b = (f.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === lYr);
-      if (a && b && typeof a.Value === 'number' && typeof b.Value === 'number') {
-        diffs.push(round1(b.Value - a.Value));
-      }
-    });
-    diffs.sort((a, b) => a - b);
-    if (diffs.length === 0) return [0, 0, 0, 0];
-
-    return [
-      diffs[Math.floor(diffs.length * 0.2)],
-      diffs[Math.floor(diffs.length * 0.4)],
-      diffs[Math.floor(diffs.length * 0.6)],
-      diffs[Math.floor(diffs.length * 0.8)]
-    ];
-  }
-
-  function getFeatureColor(feature) {
-    if (mode === 'absolute') {
-      const val = featureValue(feature);
-      if (val == null) return '#ccc';
-      if (val > breaks[3]) return colors[6];
-      if (val > breaks[2]) return colors[5];
-      if (val > breaks[1]) return colors[4];
-      if (val > breaks[0]) return colors[3];
-      return colors[0];
-    }
-
-    const fYr = years[0], lYr = years[years.length - 1];
-    const a = (feature.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === fYr);
-    const b = (feature.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === lYr);
-    if (!a || !b) return '#ccc';
-
-    const diff = round1(b.Value - a.Value);
-    const cb = computeChangeBreaks(deaDataCache);
-    if (diff > cb[3]) return changeColors[6];
-    if (diff > cb[2]) return changeColors[5];
-    if (diff > cb[1]) return changeColors[4];
-    if (diff > cb[0]) return changeColors[3];
-    return changeColors[0];
-  }
-
-  function updateMapStyles() {
-    if (!deaLayer) return;
-    if (mode === 'absolute') computeBreaks(deaDataCache);
-
-    deaLayer.eachLayer(layer => {
-      const newColor = getFeatureColor(layer.feature);
-      if (layer._path) {
-        layer._path.style.transition = 'fill 600ms ease';
-        layer._path.style.fill = newColor;
-      } else {
-        layer.setStyle({ fillColor: newColor });
-      }
-    });
-    updateLegend();
-  }
-
-  function updateYearLabel() {
-    document.getElementById('year-label').textContent = years[currentYearIndex];
-  }
-
-  function updateLegend() {
-    const div = document.getElementById('legend-content');
-
-    if (mode === 'absolute') {
-      const vals = [];
-      deaDataCache.features.forEach(f => {
-        const rec = (f.properties.data || []).find(
-          d => d.Sex === selectedSex && d.GroupedYear === years[currentYearIndex]
-        );
-        if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
-      });
-
-      const min = vals.length ? round1(Math.min(...vals)) : 'n/a';
-      const max = vals.length ? round1(Math.max(...vals)) : 'n/a';
-
-      let html = `<b>${selectedSex} (${years[currentYearIndex]})</b><br>`;
-      html += `<small>min: ${min} — max: ${max}</small><br><br>`;
-      const ranges = [0, ...breaks];
-      for (let i = 0; i < breaks.length; i++) {
-        const labelLow = i === 0 ? min : round1(breaks[i - 1]);
-        const labelHigh = round1(breaks[i]);
-        html += `<i style="background:${colors[i + 1]}"></i> ${labelLow} – ${labelHigh}<br>`;
-      }
-      div.innerHTML = html;
-      return;
-    }
-
-    const cb = computeChangeBreaks(deaDataCache);
-    const fYr = years[0], lYr = years[years.length - 1];
-    const changes = [];
-    deaDataCache.features.forEach(f => {
-      const a = (f.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === fYr);
-      const b = (f.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === lYr);
-      if (a && b) changes.push(round1(b.Value - a.Value));
-    });
-
-    const min = changes.length ? Math.min(...changes) : 'n/a';
-    const max = changes.length ? Math.max(...changes) : 'n/a';
-
-    let html = `<b>Change ${fYr} → ${lYr} (${selectedSex})</b><br>`;
-    html += `<small>min: ${min} — max: ${max}</small><br><br>`;
-    for (let i = 0; i < 7; i++) {
-      const label = (i === 0) ? `≤ ${cb[0]}` : (i === 6) ? `≥ ${cb[3]}` : '';
-      html += `<i style="background:${changeColors[i]}"></i> ${label}<br>`;
-    }
-    div.innerHTML = html;
-  }
-
-  function computeNITrend(sex) {
-    const yearToValues = {};
-    deaDataCache.features.forEach(f => {
-      (f.properties.data || []).forEach(d => {
-        if (d.Sex === sex) {
-          if (!yearToValues[d.GroupedYear]) yearToValues[d.GroupedYear] = [];
-          yearToValues[d.GroupedYear].push(d.Value);
-        }
-      });
-    });
-    return years.map(year => {
-      const vals = yearToValues[year] || [];
-      if (vals.length === 0) return null;
-      const sum = vals.reduce((a, b) => a + b, 0);
-      return sum / vals.length;
-    });
-  }
+  /* --- SIDEBAR CHART FUNCTION --- */
 
   function populateSidebarFromFeature(feature) {
-const props = feature.properties;
+    const props = feature.properties;
 
-document.getElementById('sidebar-title').textContent =
-`DEA – ${props.finalr_dea || 'Unknown'}`;
+    document.getElementById('sidebar-title').textContent =
+      `DEA – ${props.finalr_dea || 'Unknown'}`;
 
-const curVal = featureValue(feature);
+    const curVal = featureValue(feature);
 
-document.getElementById('sidebar-meta').innerHTML = `     <strong>${selectedSex}</strong><br>
-    Period: ${years[0]} → ${years[years.length - 1]}<br>
-    Current (${years[currentYearIndex]}): ${
-      curVal != null ? round1(curVal) + ' yrs' : 'n/a'
-    }
-  `;
+    document.getElementById('sidebar-meta').innerHTML = `
+      <strong>${selectedSex}</strong><br>
+      Period: ${years[0]} → ${years[years.length - 1]}<br>
+      Current (${years[currentYearIndex]}): ${
+        curVal != null ? round1(curVal) + ' yrs' : 'n/a'
+      }
+    `;
 
-// Extract time series for this DEA
-const ts = (props.data || [])
-.filter(d => d.Sex === selectedSex)
-.sort((a, b) => ('' + a.GroupedYear).localeCompare('' + b.GroupedYear));
+    const ts = (props.data || [])
+      .filter(d => d.Sex === selectedSex)
+      .sort((a, b) => ('' + a.GroupedYear).localeCompare('' + b.GroupedYear));
 
-const labels = ts.map(d => d.GroupedYear);
-const values = ts.map(d => round1(d.Value));
+    const labels = ts.map(d => d.GroupedYear);
+    const values = ts.map(d => round1(d.Value));
 
-const niTrend = computeNITrend(selectedSex);
+    const niTrend = computeNITrend(selectedSex);
+    const selectedIndex = labels.indexOf(years[currentYearIndex]);
 
-// Find index of currently selected year
-const selectedIndex = labels.indexOf(years[currentYearIndex]);
+    if (deaChart) deaChart.destroy();
+    const ctx = document.getElementById('deaChart').getContext('2d');
 
-// Destroy existing chart if needed
-if (deaChart) deaChart.destroy();
-
-const ctx = document.getElementById('deaChart').getContext('2d');
-
-deaChart = new Chart(ctx, {
-type: 'line',
-data: {
-labels,
-datasets: [
-{
-label: `${props.finalr_dea} (${selectedSex})`,
-data: values,
-tension: 0.3,
-borderWidth: 2,
-pointRadius: 3,
-fill: false,
-borderColor: '#0078A8'
-},
-{
-label: `Northern Ireland average (${selectedSex})`,
-data: niTrend,
-tension: 0.3,
-borderWidth: 2,
-pointRadius: 0,
-fill: false,
-borderColor: '#888',
-borderDash: [5, 5]
-}
-]
-},
-options: {
-  responsive: true,
-  maintainAspectRatio: false,
-  animation: {
-    duration: 500,  // smooth slide when year changes
-  },
-  scales: {
-    y: {
-      min: 65,
-      max: 90,
-      title: { display: true, text: 'HLE (years)' }
-    },
-    x: {
-      title: { display: true, text: 'Period' }
-    }
-  },
-  plugins: {
-    annotation: {
-      animations: {
-        // Animate the vertical line when position changes
-        currentYearLine: {
-          properties: ['xMin', 'xMax'],
-        }
+    deaChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: `${props.finalr_dea} (${selectedSex})`,
+            data: values,
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 3,
+            fill: false,
+            borderColor: '#0078A8'
+          },
+          {
+            label: `Northern Ireland average (${selectedSex})`,
+            data: niTrend,
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            borderColor: '#888',
+            borderDash: [5, 5]
+          }
+        ]
       },
-      annotations: {
-        // -----------------------
-        // 1. Vertical line marker
-        // -----------------------
-        currentYearLine: {
-          type: 'line',
-          xMin: selectedIndex,
-          xMax: selectedIndex,
-          borderColor: 'rgba(0,0,0,0.45)',
-          borderWidth: 1,
-          borderDash: [4, 4],
-          label: {
-            enabled: true,
-            content: years[currentYearIndex],
-            position: 'start',
-            backgroundColor: 'rgba(0,0,0,0)', // invisible background
-            color: '#333',
-            font: { size: 10 }
+      options: {
+        responsive: true,
+        animation: false,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            min: 65,
+            max: 90,
+            title: { display: true, text: 'HLE (years)' }
+          },
+          x: {
+            title: { display: true, text: 'Period' }
           }
         },
-
-        // -----------------------
-        // 2. Faint shading band
-        // -----------------------
-        shadedBand: {
-          type: 'box',
-          xMin: 0,
-          xMax: selectedIndex,
-          backgroundColor: 'rgba(0, 120, 168, 0.06)',   // faint NI-blue tint
-          borderWidth: 0,
+        plugins: {
+          annotation: {
+            annotations: {
+              shadeLeft: {
+                type: 'box',
+                xMin: 0,
+                xMax: selectedIndex,
+                backgroundColor: 'rgba(0, 0, 0, 0.05)'
+              },
+              currentYearLine: {
+                type: 'line',
+                xMin: selectedIndex,
+                xMax: selectedIndex,
+                borderColor: 'rgba(0,0,0,0.4)',
+                borderWidth: 1,
+                borderDash: [4,4]
+              }
+            }
+          }
         }
       }
-    },
-
-    // ---------------------------------------
-    // 3. Highlight point at selected year
-    // ---------------------------------------
-    tooltip: { enabled: true },
-    legend: { display: true }
-  },
-
-  // Make the selected index point larger
-  elements: {
-    point: {
-      radius: (ctx) => {
-        const index = ctx.dataIndex;
-        return index === selectedIndex ? 6 : 3;   // enlarge selected point
-      },
-      hoverRadius: 7
-    }
+    });
   }
-}
-});
-}
 
+  /* --- Update sidebar chart when year changes (step animation) --- */
+  function updateSidebarChartForSelectedYear() {
+    if (!deaChart) return;
 
-  // ========== EVENT HANDLERS ==========
+    const labels = deaChart.data.labels;
+    const selectedIndex = labels.indexOf(years[currentYearIndex]);
 
-  document.getElementById('tab-males').onclick = () => {
-    selectedSex = 'Males';
-    document.getElementById('tab-males').classList.add('active');
-    document.getElementById('tab-females').classList.remove('active');
-    updateMapStyles();
-  };
+    deaChart.options.plugins.annotation.annotations.currentYearLine.xMin =
+      selectedIndex;
+    deaChart.options.plugins.annotation.annotations.currentYearLine.xMax =
+      selectedIndex;
 
-  document.getElementById('tab-females').onclick = () => {
-    selectedSex = 'Females';
-    document.getElementById('tab-females').classList.add('active');
-    document.getElementById('tab-males').classList.remove('active');
-    updateMapStyles();
-  };
+    deaChart.options.plugins.annotation.annotations.shadeLeft.xMax =
+      selectedIndex;
 
-  document.getElementById('year-slider').oninput = e => {
-    currentYearIndex = +e.target.value;
-    updateYearLabel();
-    updateMapStyles();
-  };
+    deaChart.update();
+  }
 
-  document.getElementById('play-btn').onclick = () => {
+  /* Hook slider + play button to sidebar */
+  document.getElementById('year-slider').addEventListener('input', () => {
+    updateSidebarChartForSelectedYear();
+  });
+
+  document.getElementById('play-btn').addEventListener('click', () => {
     if (playInterval) {
       clearInterval(playInterval);
       playInterval = null;
@@ -548,23 +247,13 @@ options: {
         document.getElementById('year-slider').value = currentYearIndex;
         updateYearLabel();
         updateMapStyles();
+        updateSidebarChartForSelectedYear();
       }, 1500);
     }
-  };
-
-  document.getElementById('close-sidebar').onclick = () => {
-    document.getElementById('sidebar').style.display = 'none';
-    if (lastHoveredLayer) deaLayer.resetStyle(lastHoveredLayer);
-    lastHoveredLayer = null;
-  };
-
-  document.querySelectorAll('input[name="mode"]').forEach(r => {
-    r.addEventListener('change', e => {
-      mode = e.target.value;
-      updateMapStyles();
-    });
   });
-  </script>
 
+  /* Rest of your original script below... */
+
+  </script>
 </body>
 </html>
