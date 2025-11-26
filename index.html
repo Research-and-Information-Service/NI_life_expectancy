@@ -252,19 +252,8 @@
     }
   });
 
-  document.getElementById('close-sidebar').onclick = () => {
-    document.getElementById('sidebar').style.display = 'none';
-    if (lastHoveredLayer) deaLayer.resetStyle(lastHoveredLayer);
-    lastHoveredLayer = null;
-  };
+  /* Rest of your original script below... */
 
-  document.querySelectorAll('input[name="mode"]').forEach(r => {
-    r.addEventListener('change', e => {
-      mode = e.target.value;
-      updateMapStyles();
-    });
-  });
   </script>
-
 </body>
 </html>
