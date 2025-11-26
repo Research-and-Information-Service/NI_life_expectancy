@@ -11,9 +11,12 @@
 
  <!-- Chart.js -->
 <script src="https://unpkg.com/chart.js@4.3.0/dist/chart.umd.js"></script>
-<script src="https://unpkg.com/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.umd.js"></script>
+
+<!-- Chart.js Annotation Plugin -->
+<script src="https://unpkg.com/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
 <script>
-  Chart.register(window.chartjsPluginAnnotation);
+  Chart.register(window['chartjs-plugin-annotation']);
 </script>
 
   <style>
