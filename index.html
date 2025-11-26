@@ -435,39 +435,82 @@ borderDash: [5, 5]
 ]
 },
 options: {
-responsive: true,
-maintainAspectRatio: false,
-scales: {
-y: {
-min: 65,
-max: 90,
-title: { display: true, text: 'HLE (years)' }
-},
-x: {
-title: { display: true, text: 'Period' }
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: {
+    duration: 500,  // smooth slide when year changes
+  },
+  scales: {
+    y: {
+      min: 65,
+      max: 90,
+      title: { display: true, text: 'HLE (years)' }
+    },
+    x: {
+      title: { display: true, text: 'Period' }
+    }
+  },
+  plugins: {
+    annotation: {
+      animations: {
+        // Animate the vertical line when position changes
+        currentYearLine: {
+          properties: ['xMin', 'xMax'],
+        }
+      },
+      annotations: {
+        // -----------------------
+        // 1. Vertical line marker
+        // -----------------------
+        currentYearLine: {
+          type: 'line',
+          xMin: selectedIndex,
+          xMax: selectedIndex,
+          borderColor: 'rgba(0,0,0,0.45)',
+          borderWidth: 1,
+          borderDash: [4, 4],
+          label: {
+            enabled: true,
+            content: years[currentYearIndex],
+            position: 'start',
+            backgroundColor: 'rgba(0,0,0,0)', // invisible background
+            color: '#333',
+            font: { size: 10 }
+          }
+        },
+
+        // -----------------------
+        // 2. Faint shading band
+        // -----------------------
+        shadedBand: {
+          type: 'box',
+          xMin: 0,
+          xMax: selectedIndex,
+          backgroundColor: 'rgba(0, 120, 168, 0.06)',   // faint NI-blue tint
+          borderWidth: 0,
+        }
+      }
+    },
+
+    // ---------------------------------------
+    // 3. Highlight point at selected year
+    // ---------------------------------------
+    tooltip: { enabled: true },
+    legend: { display: true }
+  },
+
+  // Make the selected index point larger
+  elements: {
+    point: {
+      radius: (ctx) => {
+        const index = ctx.dataIndex;
+        return index === selectedIndex ? 6 : 3;   // enlarge selected point
+      },
+      hoverRadius: 7
+    }
+  }
 }
-},
-plugins: {
-annotation: {
-annotations: {
-currentYearLine: {
-type: 'line',
-xMin: selectedIndex,
-xMax: selectedIndex,
-borderColor: 'rgba(0,0,0,0.4)',
-borderWidth: 1,
-borderDash: [4, 4],
-label: {
-enabled: true,
-content: years[currentYearIndex],
-position: 'start'
-}
-}
-}
-}
-}
-}
-});
+);
 }
 
 
