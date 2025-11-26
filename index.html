@@ -11,12 +11,9 @@
 
  <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
-
-<!-- Annotation plugin (UMD build that works with Chart.js v4) -->
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.umd.min.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.umd.js"></script>
 <script>
-  Chart.register(window.ChartAnnotation);
+  Chart.register(window['chartjs-plugin-annotation']);
 </script>
 
   <style>
