@@ -372,147 +372,122 @@
   }
 
   function populateSidebarFromFeature(feature) {
-const props = feature.properties;
+    const props = feature.properties;
 
-document.getElementById('sidebar-title').textContent =
-`DEA – ${props.finalr_dea || 'Unknown'}`;
+    document.getElementById('sidebar-title').textContent =
+      `DEA – ${props.finalr_dea || 'Unknown'}`;
 
-const curVal = featureValue(feature);
+    const curVal = featureValue(feature);
 
-document.getElementById('sidebar-meta').innerHTML = `     <strong>${selectedSex}</strong><br>
-    Period: ${years[0]} → ${years[years.length - 1]}<br>
-    Current (${years[currentYearIndex]}): ${
-      curVal != null ? round1(curVal) + ' yrs' : 'n/a'
-    }
-  `;
+    document.getElementById('sidebar-meta').innerHTML = `
+      <strong>${selectedSex}</strong><br>
+      Period: ${years[0]} → ${years[years.length - 1]}<br>
+      Current (${years[currentYearIndex]}): ${
+        curVal != null ? round1(curVal) + ' yrs' : 'n/a'
+      }
+    `;
 
-// Extract time series for this DEA
-const ts = (props.data || [])
-.filter(d => d.Sex === selectedSex)
-.sort((a, b) => ('' + a.GroupedYear).localeCompare('' + b.GroupedYear));
+    const ts = (props.data || [])
+      .filter(d => d.Sex === selectedSex)
+      .sort((a, b) => ('' + a.GroupedYear).localeCompare('' + b.GroupedYear));
 
-const labels = ts.map(d => d.GroupedYear);
-const values = ts.map(d => round1(d.Value));
+    const labels = ts.map(d => d.GroupedYear);
+    const values = ts.map(d => round1(d.Value));
 
-const niTrend = computeNITrend(selectedSex);
+    const niTrend = computeNITrend(selectedSex);
+    const selectedIndex = labels.indexOf(years[currentYearIndex]);
 
-// Find index of currently selected year
-const selectedIndex = labels.indexOf(years[currentYearIndex]);
+    if (deaChart) deaChart.destroy();
+    const ctx = document.getElementById('deaChart').getContext('2d');
 
-// Destroy existing chart if needed
-if (deaChart) deaChart.destroy();
-
-const ctx = document.getElementById('deaChart').getContext('2d');
-
-deaChart = new Chart(ctx, {
-type: 'line',
-data: {
-labels,
-datasets: [
-{
-label: `${props.finalr_dea} (${selectedSex})`,
-data: values,
-tension: 0.3,
-borderWidth: 2,
-pointRadius: 3,
-fill: false,
-borderColor: '#0078A8'
-},
-{
-label: `Northern Ireland average (${selectedSex})`,
-data: niTrend,
-tension: 0.3,
-borderWidth: 2,
-pointRadius: 0,
-fill: false,
-borderColor: '#888',
-borderDash: [5, 5]
-}
-]
-},
-options: {
-  responsive: true,
-  maintainAspectRatio: false,
-  animation: {
-    duration: 500,  // smooth slide when year changes
-  },
-  scales: {
-    y: {
-      min: 65,
-      max: 90,
-      title: { display: true, text: 'HLE (years)' }
-    },
-    x: {
-      title: { display: true, text: 'Period' }
-    }
-  },
-  plugins: {
-    annotation: {
-      animations: {
-        // Animate the vertical line when position changes
-        currentYearLine: {
-          properties: ['xMin', 'xMax'],
-        }
+    deaChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: `${props.finalr_dea} (${selectedSex})`,
+            data: values,
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 3,
+            fill: false,
+            borderColor: '#0078A8'
+          },
+          {
+            label: `Northern Ireland average (${selectedSex})`,
+            data: niTrend,
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            borderColor: '#888',
+            borderDash: [5, 5]
+          }
+        ]
       },
-      annotations: {
-        // -----------------------
-        // 1. Vertical line marker
-        // -----------------------
-        currentYearLine: {
-          type: 'line',
-          xMin: selectedIndex,
-          xMax: selectedIndex,
-          borderColor: 'rgba(0,0,0,0.45)',
-          borderWidth: 1,
-          borderDash: [4, 4],
-          label: {
-            enabled: true,
-            content: years[currentYearIndex],
-            position: 'start',
-            backgroundColor: 'rgba(0,0,0,0)', // invisible background
-            color: '#333',
-            font: { size: 10 }
+      options: {
+        responsive: true,
+        animation: false,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            min: 65,
+            max: 90,
+            title: { display: true, text: 'HLE (years)' }
+          },
+          x: {
+            title: { display: true, text: 'Period' }
           }
         },
-
-        // -----------------------
-        // 2. Faint shading band
-        // -----------------------
-        shadedBand: {
-          type: 'box',
-          xMin: 0,
-          xMax: selectedIndex,
-          backgroundColor: 'rgba(0, 120, 168, 0.06)',   // faint NI-blue tint
-          borderWidth: 0,
+        plugins: {
+          annotation: {
+            annotations: {
+              shadeLeft: {
+                type: 'box',
+                xMin: 0,
+                xMax: selectedIndex,
+                backgroundColor: 'rgba(0, 0, 0, 0.05)'
+              },
+              currentYearLine: {
+                type: 'line',
+                xMin: selectedIndex,
+                xMax: selectedIndex,
+                borderColor: 'rgba(0,0,0,0.4)',
+                borderWidth: 1,
+                borderDash: [4,4]
+              }
+            }
+          }
         }
       }
-    },
-
-    // ---------------------------------------
-    // 3. Highlight point at selected year
-    // ---------------------------------------
-    tooltip: { enabled: true },
-    legend: { display: true }
-  },
-
-  // Make the selected index point larger
-  elements: {
-    point: {
-      radius: (ctx) => {
-        const index = ctx.dataIndex;
-        return index === selectedIndex ? 6 : 3;   // enlarge selected point
-      },
-      hoverRadius: 7
-    }
+    });
   }
-}
-});
-}
 
+  /* --- Update sidebar chart when year changes (step animation) --- */
+  function updateSidebarChartForSelectedYear() {
+    if (!deaChart) return;
 
-  // ========== EVENT HANDLERS ==========
+    const labels = deaChart.data.labels;
+    const selectedIndex = labels.indexOf(years[currentYearIndex]);
 
-  document.getElementById('tab-males').onclick = () => {
+    deaChart.options.plugins.annotation.annotations.currentYearLine.xMin =
+      selectedIndex;
+    deaChart.options.plugins.annotation.annotations.currentYearLine.xMax =
+      selectedIndex;
+
+    deaChart.options.plugins.annotation.annotations.shadeLeft.xMax =
+      selectedIndex;
+
+    deaChart.update();
+  }
+
+  /* Hook slider + play button to sidebar */
+  document.getElementById('year-slider').addEventListener('input', () => {
+    updateSidebarChartForSelectedYear();
+  });
+
+    document.getElementById('tab-males').onclick = () => {
     selectedSex = 'Males';
     document.getElementById('tab-males').classList.add('active');
     document.getElementById('tab-females').classList.remove('active');
@@ -525,14 +500,8 @@ options: {
     document.getElementById('tab-males').classList.remove('active');
     updateMapStyles();
   };
-
-  document.getElementById('year-slider').oninput = e => {
-    currentYearIndex = +e.target.value;
-    updateYearLabel();
-    updateMapStyles();
-  };
-
-  document.getElementById('play-btn').onclick = () => {
+  
+  document.getElementById('play-btn').addEventListener('click', () => {
     if (playInterval) {
       clearInterval(playInterval);
       playInterval = null;
@@ -544,6 +513,7 @@ options: {
         document.getElementById('year-slider').value = currentYearIndex;
         updateYearLabel();
         updateMapStyles();
+        updateSidebarChartForSelectedYear();
       }, 1500);
     }
   };
