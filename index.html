@@ -485,12 +485,16 @@
     deaChart.update();
   }
 
-  /* Hook slider + play button to sidebar */
-  document.getElementById('year-slider').addEventListener('input', () => {
+  /* ---------- FIXED SLIDER HANDLER ---------- */
+  document.getElementById('year-slider').addEventListener('input', e => {
+    currentYearIndex = Number(e.target.value);  // FIX 1
+    updateYearLabel();                          // FIX 2
+    updateMapStyles();                          // FIX 3
     updateSidebarChartForSelectedYear();
   });
 
-    document.getElementById('tab-males').onclick = () => {
+  /* Buttons & mode switching */
+  document.getElementById('tab-males').onclick = () => {
     selectedSex = 'Males';
     document.getElementById('tab-males').classList.add('active');
     document.getElementById('tab-females').classList.remove('active');
