@@ -42,6 +42,16 @@
     .legend { background: white; padding: 6px; border-radius: 4px; font-size: 12px; }
     .legend i { width: 18px; height: 18px; float: left; margin-right: 8px; opacity: 0.95; }
 
+    #assembly-logo {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  width: 120px;      /* adjust size as needed */
+  z-index: 1100;     /* above map controls */
+  opacity: 0.95;     /* slight transparency looks good */
+  pointer-events: none; /* prevents blocking map clicks */
+}
+
     /* Sidebar */
     #sidebar {
       position: absolute;
@@ -84,6 +94,8 @@
 
 <body>
   <div id="map"></div>
+
+  <img id="assembly-logo" src="NI_Assembly.svg" alt="NI Assembly Logo">
 
   <div id="spinner">
     <div class="spinner-dot" style="animation-delay:0s"></div>
