@@ -25,7 +25,7 @@
       top: 10px; left: 10px; z-index: 1000;
       background: white; padding: 10px; border-radius: 6px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      width: 320px;
+      width: 340px;
     }
     .tabs { margin-bottom: 6px; }
     .tabs button {
@@ -53,7 +53,7 @@
       position: absolute;
       right: 10px;
       top: 10px;
-      width: 380px;
+      width: 420px;
       max-height: calc(100vh - 20px);
       overflow: auto;
       z-index: 1000;
@@ -63,7 +63,7 @@
       display: none;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
-    #chart-container { height: 240px; }
+    #chart-container { height: 260px; }
 
     /* Spinner */
     #spinner {
@@ -96,22 +96,24 @@
       pointer-events: none;
     }
 
-    /* small responsive tweak so sidebar and controls don't overlap map controls */
     @media (max-width: 900px) {
-      .controls { width: 260px; }
-      #sidebar { width: 300px; }
+      .controls { width: 280px; }
+      #sidebar { width: 320px; }
     }
+
+    /* small legend fix to clear floats */
+    .legend:after { content: ""; display: block; clear: both; }
   </style>
 </head>
-
 <body>
+
   <div id="map"></div>
   <img id="assembly-logo" src="NI_Assembly.svg" alt="NI Assembly Logo">
 
   <div id="spinner">
     <div class="spinner-dot" style="animation-delay:0s"></div>
-    <div class="spinner-dot" style="animation-delay:0.15s"></div>
-    <div class="spinner-dot" style="animation-delay:0.3s"></div>
+    <div class="spinner-dot" style="animation-delay:0.12s"></div>
+    <div class="spinner-dot" style="animation-delay:0.24s"></div>
   </div>
 
   <div class="controls">
@@ -130,6 +132,12 @@
       <label><input type="radio" name="mode" value="absolute" checked> Show absolute (year)</label><br>
       <label><input type="radio" name="mode" value="change"> Show change (first → last)</label>
     </div>
+
+    <div style="margin-top:10px;">
+      <b>Chart y-axis</b><br>
+      <label><input type="radio" name="yaxis" value="dynamic"> Dynamic (per chart)</label><br>
+      <label><input type="radio" name="yaxis" value="fixed" checked> Fixed (global)</label>
+    </div>
   </div>
 
   <div id="sidebar">
@@ -140,26 +148,30 @@
   </div>
 
   <script>
-  // ======================= CONFIG =======================
-  // final colour ramp (user confirmed)
+  // ================= CONFIG =================
+  // User confirmed 7-class inverted ramp (dark = low, light = high)
   const colors = [
     "#28326f", "#265188", "#246b9e", "#2285b3", "#6baccb", "#b4d2e3", "#dee8f1"
   ];
 
   const geojsonUrl = 'DEA_data.geojson';
+
   let selectedSex = 'Males';
   let years = [];
   let currentYearIndex = 0;
-  let mode = 'absolute';
-  let breaks = [];         // absolute breaks (6 values -> 7 classes)
-  let changeBreaks = [];   // change breaks for diffs
+  let mode = 'absolute';      // 'absolute' or 'change'
+  let yAxisMode = 'fixed';    // 'fixed' or 'dynamic'
   let deaDataCache = null;
   let deaLayer = null;
   let lastHoveredLayer = null;
   let deaChart = null;
   let playInterval = null;
 
-  // global y-axis bounds across all data
+  // breaks
+  let breaks = [];       // for absolute values (6 breakpoints -> 7 classes)
+  let changeBreaks = []; // for diffs
+
+  // global y axis bounds (computed across all values)
   let globalMinValue = null;
   let globalMaxValue = null;
 
@@ -182,7 +194,7 @@
 
   showSpinner(true);
 
-  // ------------------ load GeoJSON ------------------
+  // ---------------- Load GeoJSON ----------------
   fetch(geojsonUrl)
     .then(r => {
       if (!r.ok) throw new Error('GeoJSON load failed: ' + r.statusText);
@@ -206,10 +218,10 @@
       document.getElementById('year-slider').max = years.length - 1;
       updateYearLabel();
 
-      // compute global y axis bounds
+      // compute global y-axis bounds for fixed mode
       computeGlobalBounds();
 
-      // compute current breaks
+      // break calculations
       computeBreaks();
       computeChangeBreaks();
 
@@ -249,13 +261,15 @@
       alert('Error loading data: ' + err.message);
     });
 
-  // ======================= HELPERS =======================
+  // ================ HELPERS =================
   function round1(v) { return (typeof v === 'number') ? Math.round(v * 10) / 10 : v; }
 
   function updateYearLabel() {
-    document.getElementById('year-label').textContent = years[currentYearIndex];
+    const yl = document.getElementById('year-label');
+    yl.textContent = years[currentYearIndex];
   }
 
+  // compute global min/max across all data (used when fixed y-axis selected)
   function computeGlobalBounds() {
     let gmin = Infinity, gmax = -Infinity;
     deaDataCache.features.forEach(f => {
@@ -271,20 +285,32 @@
       globalMaxValue = null;
       return;
     }
-    // add small buffer for nicer display
     globalMinValue = Math.floor(gmin - 1);
     globalMaxValue = Math.ceil(gmax + 1);
   }
 
-  // returns the feature value for current selectedSex & selected year
-  function featureValue(feature) {
-    const rec = (feature.properties.data || []).find(
-      d => d.Sex === selectedSex && d.GroupedYear === years[currentYearIndex]
-    );
+  // return value for feature for current year+sex
+  function featureValue(feature, yearIndex = currentYearIndex, sex = selectedSex) {
+    const y = years[yearIndex];
+    const rec = (feature.properties.data || []).find(d => d.Sex === sex && d.GroupedYear === y);
     return rec ? rec.Value : null;
   }
 
-  // compute equal-interval breaks for absolute values (7 classes -> 6 breakpoints)
+  // compute NI average vector (per year) for selected sex (simple mean)
+  function computeNIAverage(sex) {
+    return years.map(y => {
+      const vals = [];
+      deaDataCache.features.forEach(f => {
+        const rec = (f.properties.data || []).find(d => d.Sex === sex && d.GroupedYear === y);
+        if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
+      });
+      if (vals.length === 0) return null;
+      const sum = vals.reduce((a,b) => a + b, 0);
+      return round1(sum / vals.length);
+    });
+  }
+
+  // compute equal-interval breaks for absolute mode (7 classes)
   function computeBreaks() {
     const vals = [];
     deaDataCache.features.forEach(f => {
@@ -300,7 +326,7 @@
     breaks = Array.from({length:6}, (_, i) => round1(min + step * (i + 1)));
   }
 
-  // compute equal-interval breaks for change mode (diffs)
+  // compute equal-interval breaks for change mode (diffs between first and last)
   function computeChangeBreaks() {
     const diffs = [];
     const fYr = years[0], lYr = years[years.length - 1];
@@ -318,12 +344,12 @@
     changeBreaks = Array.from({length:6}, (_, i) => round1(min + step * (i + 1)));
   }
 
-  // assign colour depending on mode
+  // get colour for a feature depending on mode
   function getFeatureColor(feature) {
     if (mode === 'absolute') {
       const val = featureValue(feature);
       if (val == null) return '#ccc';
-      if (breaks.length === 0) return colors[0];
+      if (breaks.length !== 6) return colors[0];
       if (val <= breaks[0]) return colors[0];
       if (val <= breaks[1]) return colors[1];
       if (val <= breaks[2]) return colors[2];
@@ -333,12 +359,12 @@
       return colors[6];
     } else {
       // change mode
+      if (changeBreaks.length !== 6) return colors[0];
       const fYr = years[0], lYr = years[years.length - 1];
       const a = (feature.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === fYr);
       const b = (feature.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === lYr);
       if (!a || !b || typeof a.Value !== 'number' || typeof b.Value !== 'number') return '#ccc';
       const diff = round1(b.Value - a.Value);
-      if (changeBreaks.length === 0) return colors[0];
       if (diff <= changeBreaks[0]) return colors[0];
       if (diff <= changeBreaks[1]) return colors[1];
       if (diff <= changeBreaks[2]) return colors[2];
@@ -349,7 +375,7 @@
     }
   }
 
-  // update map fill colours and legend
+  // update map styles and legend
   function updateMapStyles() {
     if (!deaLayer) return;
     if (mode === 'absolute') computeBreaks();
@@ -363,17 +389,15 @@
     updateLegend();
   }
 
-  // Update legend: absolute (7 classes) or change mode (7 classes on diffs)
+  // update legend to reflect current mode & breaks
   function updateLegend() {
     const div = document.getElementById('legend-content');
-    if (!deaDataCache) return;
+    if (!deaDataCache) { div.innerHTML = ''; return; }
 
     if (mode === 'absolute') {
       const vals = [];
       deaDataCache.features.forEach(f => {
-        const rec = (f.properties.data || []).find(
-          d => d.Sex === selectedSex && d.GroupedYear === years[currentYearIndex]
-        );
+        const rec = (f.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === years[currentYearIndex]);
         if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
       });
       const min = vals.length ? round1(Math.min(...vals)) : 'n/a';
@@ -391,31 +415,25 @@
         html += `<i style="background:${colors[5]}"></i> ${breaks[4]} – ${breaks[5]}<br>`;
         html += `<i style="background:${colors[6]}"></i> > ${breaks[5]}<br>`;
       } else {
-        // fallback
         for (let i=0;i<7;i++) html += `<i style="background:${colors[i]}"></i> class ${i+1}<br>`;
       }
-
       div.innerHTML = html;
       return;
     }
 
-    // CHANGE MODE legend
+    // change mode legend
     const diffs = [];
     const fYr = years[0], lYr = years[years.length - 1];
     deaDataCache.features.forEach(f => {
       const a = (f.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === fYr);
       const b = (f.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === lYr);
-      if (a && b && typeof a.Value === 'number' && typeof b.Value === 'number') {
-        diffs.push(round1(b.Value - a.Value));
-      }
+      if (a && b && typeof a.Value === 'number' && typeof b.Value === 'number') diffs.push(round1(b.Value - a.Value));
     });
-
     const min = diffs.length ? Math.min(...diffs) : 'n/a';
     const max = diffs.length ? Math.max(...diffs) : 'n/a';
 
     let html = `<b>Change ${fYr} → ${lYr} (${selectedSex})</b><br>`;
     html += `<small>min: ${min} — max: ${max}</small><br><br>`;
-
     if (changeBreaks.length === 6) {
       html += `<i style="background:${colors[0]}"></i> ${min} – ${changeBreaks[0]}<br>`;
       html += `<i style="background:${colors[1]}"></i> ${changeBreaks[0]} – ${changeBreaks[1]}<br>`;
@@ -427,39 +445,41 @@
     } else {
       for (let i=0;i<7;i++) html += `<i style="background:${colors[i]}"></i> class ${i+1}<br>`;
     }
-
     div.innerHTML = html;
   }
 
-  // ======================= SIDEBAR CHART BUILD =======================
-  // Build the Chart.js chart for a single feature (DEA)
+  // ============== CHART BUILD ==============
+  // Build Chart.js chart for hovered DEA
   function buildChart(feature) {
     const ctx = document.getElementById('deaChart').getContext('2d');
 
-    // DEA records across years
+    // DEA values across years for selected sex
     const deaRecords = years.map(y => {
       const rec = (feature.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === y);
-      return rec ? round1(rec.Value) : null;
+      return rec && typeof rec.Value === 'number' ? round1(rec.Value) : null;
     });
 
-    // Northern Ireland average: find feature where finalr_dea === "Northern Ireland"
-    let niFeature = null;
-    for (let i=0;i<deaDataCache.features.length;i++) {
-      if ((deaDataCache.features[i].properties || {}).finalr_dea === 'Northern Ireland') {
-        niFeature = deaDataCache.features[i];
-        break;
+    // NI average computed across all DEAs for each year (simple mean)
+    const niRecords = computeNIAverage(selectedSex);
+
+    // determine y-axis min/max depending on yAxisMode
+    let chartMin = null, chartMax = null;
+    if (yAxisMode === 'fixed' && globalMinValue != null && globalMaxValue != null) {
+      chartMin = globalMinValue;
+      chartMax = globalMaxValue;
+    } else {
+      // dynamic: compute min/max from DEA + NI series (ignoring nulls)
+      const combined = [];
+      deaRecords.forEach(v => { if (typeof v === 'number') combined.push(v); });
+      niRecords.forEach(v => { if (typeof v === 'number') combined.push(v); });
+      if (combined.length > 0) {
+        chartMin = Math.floor(Math.min(...combined) - 1);
+        chartMax = Math.ceil(Math.max(...combined) + 1);
       }
     }
-    const niRecords = years.map(y => {
-      if (!niFeature) return null;
-      const rec = (niFeature.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === y);
-      return rec ? round1(rec.Value) : null;
-    });
 
-    // find selectedIndex for annotation - use index in labels (years)
-    const selectedIndex = years.indexOf(years[currentYearIndex]);
+    const selectedIndex = currentYearIndex;
 
-    // destroy old chart
     if (deaChart) deaChart.destroy();
 
     deaChart = new Chart(ctx, {
@@ -471,14 +491,14 @@
             label: feature.properties.finalr_dea || 'DEA',
             data: deaRecords,
             borderColor: '#0078A8',
-            backgroundColor: 'rgba(0,120,168,0.15)',
+            backgroundColor: 'rgba(0,120,168,0.16)',
             fill: true,
             pointRadius: 3,
             tension: 0.3,
             borderWidth: 2
           },
           {
-            label: 'Northern Ireland',
+            label: 'Northern Ireland (avg)',
             data: niRecords,
             borderColor: '#444',
             backgroundColor: 'transparent',
@@ -500,8 +520,8 @@
           },
           y: {
             title: { display: true, text: 'HLE (years)' },
-            min: (globalMinValue != null ? globalMinValue : undefined),
-            max: (globalMaxValue != null ? globalMaxValue : undefined)
+            min: (chartMin != null ? chartMin : undefined),
+            max: (chartMax != null ? chartMax : undefined)
           }
         },
         plugins: {
@@ -529,38 +549,54 @@
     });
   }
 
-  // Update the chart annotations when year changes (if chart exists)
+  // Update only the annotations when year selection changes
   function updateSidebarChartForSelectedYear() {
     if (!deaChart) return;
-    const selectedIndex = years.indexOf(years[currentYearIndex]);
+    const selectedIndex = currentYearIndex;
     const ann = deaChart.options.plugins.annotation.annotations;
-    if (ann && ann.currentYearLine) {
-      ann.currentYearLine.xMin = selectedIndex;
-      ann.currentYearLine.xMax = selectedIndex;
+    if (ann) {
+      if (ann.currentYearLine) {
+        ann.currentYearLine.xMin = selectedIndex;
+        ann.currentYearLine.xMax = selectedIndex;
+      }
+      if (ann.shadeLeft) {
+        ann.shadeLeft.xMax = selectedIndex;
+      }
+      deaChart.update();
     }
-    if (ann && ann.shadeLeft) {
-      ann.shadeLeft.xMax = selectedIndex;
-    }
-    deaChart.update();
   }
 
-  // Populate sidebar text and build chart
+  // populate sidebar text + chart
   function populateSidebar(feature) {
     const props = feature.properties || {};
     const curVal = featureValue(feature);
-    document.getElementById('sidebar-title').textContent = `DEA – ${props.finalr_dea || 'Unknown'}`;
 
+    document.getElementById('sidebar-title').textContent = `DEA – ${props.finalr_dea || 'Unknown'}`;
     document.getElementById('sidebar-meta').innerHTML = `
       <strong>${selectedSex}</strong><br>
       Period: ${years[0]} → ${years[years.length - 1]}<br>
       Current (${years[currentYearIndex]}): ${curVal != null ? round1(curVal) + ' yrs' : 'n/a'}
     `;
 
-    // build chart
+    // build chart for this feature
     buildChart(feature);
   }
 
-  // ======================= UI & INTERACTIONS =======================
+  // compute NI average vector used by chart
+  function computeNIAverage(sex) {
+    return years.map(y => {
+      const vals = [];
+      deaDataCache.features.forEach(f => {
+        const rec = (f.properties.data || []).find(d => d.Sex === sex && d.GroupedYear === y);
+        if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
+      });
+      if (vals.length === 0) return null;
+      const sum = vals.reduce((a,b) => a + b, 0);
+      return round1(sum / vals.length);
+    });
+  }
+
+  // ============== UI interactions ==============
   function updateTabs() {
     document.getElementById('tab-males').classList.remove('active');
     document.getElementById('tab-females').classList.remove('active');
@@ -568,7 +604,7 @@
     else document.getElementById('tab-females').classList.add('active');
   }
 
-  // slider input
+  // Slider handler
   document.getElementById('year-slider').addEventListener('input', e => {
     currentYearIndex = Number(e.target.value);
     updateYearLabel();
@@ -576,25 +612,25 @@
     updateSidebarChartForSelectedYear();
   });
 
-  // tabs
+  // Tabs
   document.getElementById('tab-males').onclick = () => {
     selectedSex = 'Males';
     updateTabs();
-    computeGlobalBounds();
     computeBreaks();
     computeChangeBreaks();
     updateMapStyles();
+    if (lastHoveredLayer && lastHoveredLayer.feature) populateSidebar(lastHoveredLayer.feature);
   };
   document.getElementById('tab-females').onclick = () => {
     selectedSex = 'Females';
     updateTabs();
-    computeGlobalBounds();
     computeBreaks();
     computeChangeBreaks();
     updateMapStyles();
+    if (lastHoveredLayer && lastHoveredLayer.feature) populateSidebar(lastHoveredLayer.feature);
   };
 
-  // play button
+  // Play button
   document.getElementById('play-btn').addEventListener('click', () => {
     if (playInterval) {
       clearInterval(playInterval);
@@ -612,7 +648,7 @@
     }
   });
 
-  // close sidebar
+  // Close sidebar
   document.getElementById('close-sidebar').onclick = () => {
     document.getElementById('sidebar').style.display = 'none';
     if (lastHoveredLayer) deaLayer.resetStyle(lastHoveredLayer);
@@ -620,22 +656,30 @@
     if (deaChart) { deaChart.destroy(); deaChart = null; }
   };
 
-  // mode toggles
+  // Mode radio buttons (absolute / change)
   document.querySelectorAll('input[name="mode"]').forEach(r => {
     r.addEventListener('change', e => {
       mode = e.target.value;
-      // recompute appropriate breaks
       if (mode === 'absolute') computeBreaks();
       else computeChangeBreaks();
       updateMapStyles();
-      // if sidebar open, re-build chart for hovered feature
       if (lastHoveredLayer && lastHoveredLayer.feature) populateSidebar(lastHoveredLayer.feature);
     });
   });
 
-  // ensure initial tab state correct
+  // Y-axis radio buttons (dynamic / fixed)
+  document.querySelectorAll('input[name="yaxis"]').forEach(r => {
+    r.addEventListener('change', e => {
+      yAxisMode = e.target.value;
+      // rebuild chart if open
+      if (lastHoveredLayer && lastHoveredLayer.feature) populateSidebar(lastHoveredLayer.feature);
+    });
+  });
+
+  // initial tab state
   updateTabs();
 
   </script>
+
 </body>
 </html>
