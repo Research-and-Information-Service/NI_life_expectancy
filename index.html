@@ -141,13 +141,13 @@
   ====================================================== */
 
   const colors = [
-    "#28326f",
-    "#265188",
-    "#246b9e",
-    "#2285b3",
-    "#6baccb",
-    "#b4d2e3",
-    "#dee8f1"
+    "#810f7c",
+    "#8856a7",
+    "#8c96c6",
+    "#9ebcda",
+    "#bfd3e6",
+    "#e0ecf4",
+    "#f7fcf0"
   ];
 
   const changeColors = colors.slice(); // keep consistent style for change (optional)
@@ -336,76 +336,25 @@
     }
   }
 
- function populateSidebar(feature){
-  const props = feature.properties;
-  const curVal = featureValue(feature);
+  function populateSidebar(feature){
+    const props = feature.properties;
+    const curVal = featureValue(feature);
 
-  document.getElementById("sidebar-title").textContent =
-    `DEA – ${props.finalr_dea}`;
+    document.getElementById("sidebar-title").textContent =
+      `DEA – ${props.finalr_dea}`;
 
-  document.getElementById("sidebar-meta").innerHTML = `
-    <strong>${selectedSex}</strong><br>
-    Year: ${years[currentYearIndex]}<br>
-    Value: ${curVal != null ? round1(curVal) + " yrs" : "n/a"}
-  `;
+    document.getElementById("sidebar-meta").innerHTML = `
+      <strong>${selectedSex}</strong><br>
+      Year: ${years[currentYearIndex]}<br>
+      Value: ${curVal != null ? round1(curVal) + " yrs" : "n/a"}
+    `;
+  }
 
-  // Build chart for this DEA
-  buildChart(feature);
-}
-
-
- 
-  /* =====================================================
-   Create sidebar line chart for selected DEA
-===================================================== */
-
-function buildChart(feature) {
-  const ctx = document.getElementById("deaChart").getContext("2d");
-
-  // Extract all years + values for the selected DEA + sex
-  const records = years.map(y => {
-    const rec = (feature.properties.data || []).find(
-      d => d.Sex === selectedSex && d.GroupedYear === y
-    );
-    return rec ? rec.Value : null;
-  });
-
-  // If an old chart exists, destroy it first
-  if (deaChart) deaChart.destroy();
-
-  deaChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: years,
-      datasets: [{
-        label: selectedSex,
-        data: records,
-        borderWidth: 2,
-        borderColor: "#0078A8",
-        backgroundColor: "rgba(0,120,168,0.15)",
-        pointRadius: 3,
-        tension: 0.2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          title: { display: true, text: "Life expectancy (years)" },
-          suggestedMin: Math.min(...records) - 0.5,
-          suggestedMax: Math.max(...records) + 0.5
-        },
-        x: {
-          title: { display: true, text: "Year" }
-        }
-      },
-      plugins: {
-        legend: { display: false }
-      }
-    }
-  });
-}
+  /* Sidebar chart update (minimal version) */
+  function updateSidebarChartForSelectedYear(){
+    if (!deaChart) return;
+    deaChart.update();
+  }
 
 
   /* ============================
@@ -416,6 +365,7 @@ function buildChart(feature) {
     currentYearIndex = Number(e.target.value);
     updateYearLabel();
     updateMapStyles();
+    updateSidebarChartForSelectedYear();
   });
 
   document.getElementById("tab-males").onclick = () => {
