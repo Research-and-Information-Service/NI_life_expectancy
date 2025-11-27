@@ -25,15 +25,16 @@
       top: 10px; left: 10px; z-index: 1000;
       background: white; padding: 10px; border-radius: 6px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      width: 300px;
+      width: 320px;
     }
+    .tabs { margin-bottom: 6px; }
     .tabs button {
       margin: 2px; padding: 6px 10px; border: none; cursor: pointer;
       background: #eee; border-radius: 4px;
     }
     .tabs button.active { background: #0078A8; color: white; }
 
-    #year-slider { width: 100%; }
+    #year-slider { width: 100%; margin-top: 8px; }
 
     #play-btn {
       margin-top: 6px; padding: 6px 10px;
@@ -52,7 +53,7 @@
       position: absolute;
       right: 10px;
       top: 10px;
-      width: 360px;
+      width: 380px;
       max-height: calc(100vh - 20px);
       overflow: auto;
       z-index: 1000;
@@ -62,8 +63,7 @@
       display: none;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
-
-    #chart-container { height: 220px; }
+    #chart-container { height: 240px; }
 
     /* Spinner */
     #spinner {
@@ -73,7 +73,6 @@
       display: none;
       z-index: 2000;
     }
-
     .spinner-dot {
       width: 16px; height: 16px; margin: 4px;
       border-radius: 50%;
@@ -96,11 +95,16 @@
       opacity: 0.95;
       pointer-events: none;
     }
+
+    /* small responsive tweak so sidebar and controls don't overlap map controls */
+    @media (max-width: 900px) {
+      .controls { width: 260px; }
+      #sidebar { width: 300px; }
+    }
   </style>
 </head>
 
 <body>
-
   <div id="map"></div>
   <img id="assembly-logo" src="NI_Assembly.svg" alt="NI Assembly Logo">
 
@@ -116,159 +120,210 @@
       <button id="tab-females">Females</button>
     </div>
 
-    <input type="range" id="year-slider" min="0" max="0" step="1" value="0">
-    <div id="year-label" style="margin-top:5px;font-weight:bold;"></div>
-
-    <button id="play-btn">▶ Play Years</button>
+    <div class="slider-container">
+      <input type="range" id="year-slider" min="0" max="0" step="1" value="0" />
+      <div id="year-label" style="margin-top:5px;font-weight:bold;"></div>
+      <button id="play-btn">▶ Play Years</button>
+    </div>
 
     <div style="margin-top:10px;">
-      <label><input type="radio" name="mode" value="absolute" checked> Absolute</label><br>
-      <label><input type="radio" name="mode" value="change"> Change</label>
+      <label><input type="radio" name="mode" value="absolute" checked> Show absolute (year)</label><br>
+      <label><input type="radio" name="mode" value="change"> Show change (first → last)</label>
     </div>
   </div>
 
   <div id="sidebar">
     <button id="close-sidebar" style="float:right">Close</button>
-    <h3 id="sidebar-title"></h3>
+    <h3 id="sidebar-title">DEA details</h3>
     <div id="sidebar-meta"></div>
     <div id="chart-container"><canvas id="deaChart"></canvas></div>
   </div>
 
   <script>
-  /* =====================================================
-     CONFIG — ColorBrewer GnBu 7-class (INVERTED)
-     darkest(low) → lightest(high)
-  ====================================================== */
-
+  // ======================= CONFIG =======================
+  // final colour ramp (user confirmed)
   const colors = [
-    "#28326f",
-    "#265188",
-    "#246b9e",
-    "#2285b3",
-    "#6baccb",
-    "#b4d2e3",
-    "#dee8f1"
+    "#28326f", "#265188", "#246b9e", "#2285b3", "#6baccb", "#b4d2e3", "#dee8f1"
   ];
 
-  const changeColors = colors.slice(); // keep consistent style for change (optional)
-
-  const geojsonUrl = "DEA_data.geojson";
-
-  let selectedSex = "Males";
+  const geojsonUrl = 'DEA_data.geojson';
+  let selectedSex = 'Males';
   let years = [];
   let currentYearIndex = 0;
+  let mode = 'absolute';
+  let breaks = [];         // absolute breaks (6 values -> 7 classes)
+  let changeBreaks = [];   // change breaks for diffs
+  let deaDataCache = null;
+  let deaLayer = null;
+  let lastHoveredLayer = null;
+  let deaChart = null;
   let playInterval = null;
-  let mode = "absolute";
-  let breaks = [];
 
-  const map = L.map("map").setView([54.7, -6.6], 8);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png").addTo(map);
+  // global y-axis bounds across all data
+  let globalMinValue = null;
+  let globalMaxValue = null;
 
-  const legend = L.control({position:"bottomright"});
-  legend.onAdd = () => {
-    const div = L.DomUtil.create("div", "legend");
-    div.innerHTML = `<div id="legend-content"></div>`;
+  // map init
+  const map = L.map('map').setView([54.7, -6.6], 8);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap & Carto'
+  }).addTo(map);
+
+  const legend = L.control({position: 'bottomright'});
+  legend.onAdd = function() {
+    const div = L.DomUtil.create('div', 'legend');
+    div.innerHTML = '<div id="legend-content"></div>';
     return div;
   };
   legend.addTo(map);
 
-  const spinner = document.getElementById("spinner");
-  function showSpinner(on=true){ spinner.style.display = on ? "block" : "none"; }
-
-  let deaLayer = null;
-  let deaDataCache = null;
-  let lastHoveredLayer = null;
-  let deaChart = null;
+  const spinner = document.getElementById('spinner');
+  function showSpinner(on = true) { spinner.style.display = on ? 'block' : 'none'; }
 
   showSpinner(true);
 
+  // ------------------ load GeoJSON ------------------
   fetch(geojsonUrl)
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) throw new Error('GeoJSON load failed: ' + r.statusText);
+      return r.json();
+    })
     .then(data => {
       deaDataCache = data;
 
+      // collect years
       const yearSet = new Set();
       data.features.forEach(f => {
         (f.properties.data || []).forEach(d => yearSet.add(d.GroupedYear));
       });
-
       years = Array.from(yearSet).sort();
-      document.getElementById("year-slider").max = years.length - 1;
+      if (years.length === 0) {
+        alert('No year data found in GeoJSON.');
+        showSpinner(false);
+        return;
+      }
+
+      document.getElementById('year-slider').max = years.length - 1;
       updateYearLabel();
 
-      computeBreaks(data);
+      // compute global y axis bounds
+      computeGlobalBounds();
 
-      const highlight = { weight: 3, color: "#000", fillOpacity: 1 };
+      // compute current breaks
+      computeBreaks();
+      computeChangeBreaks();
 
+      // create layer
+      const highlightStyle = { weight: 3, color: '#000', fillOpacity: 1 };
       deaLayer = L.geoJSON(data, {
         style: feature => ({
-          weight: 1, color: "#555",
+          weight: 1,
+          color: '#555',
           fillColor: getFeatureColor(feature),
           fillOpacity: 0.85
         }),
         onEachFeature: (feature, layer) => {
-          layer.on("mouseover", () => {
-            if (lastHoveredLayer && lastHoveredLayer !== layer)
-              deaLayer.resetStyle(lastHoveredLayer);
-
+          layer.on('mouseover', () => {
+            if (lastHoveredLayer && lastHoveredLayer !== layer) deaLayer.resetStyle(lastHoveredLayer);
             lastHoveredLayer = layer;
-            layer.setStyle(highlight);
+            layer.setStyle(highlightStyle);
             populateSidebar(feature);
-            document.getElementById("sidebar").style.display = "block";
+            document.getElementById('sidebar').style.display = 'block';
           });
-
-          layer.on("mouseout", () => {
+          layer.on('mouseout', () => {
             deaLayer.resetStyle(layer);
             lastHoveredLayer = null;
-            document.getElementById("sidebar").style.display = "none";
-            if (deaChart) deaChart.destroy();
+            document.getElementById('sidebar').style.display = 'none';
+            if (deaChart) { deaChart.destroy(); deaChart = null; }
           });
         }
       }).addTo(map);
 
-      map.fitBounds(deaLayer.getBounds(), {padding:[20,20]});
+      map.fitBounds(deaLayer.getBounds(), { padding: [20,20] });
       updateLegend();
       showSpinner(false);
+    })
+    .catch(err => {
+      console.error(err);
+      showSpinner(false);
+      alert('Error loading data: ' + err.message);
     });
 
-  /* =====================================================
-     HELPER FUNCTIONS
-  ====================================================== */
+  // ======================= HELPERS =======================
+  function round1(v) { return (typeof v === 'number') ? Math.round(v * 10) / 10 : v; }
 
-  function round1(v){ return Math.round(v * 10) / 10; }
+  function updateYearLabel() {
+    document.getElementById('year-label').textContent = years[currentYearIndex];
+  }
 
-  function featureValue(feature){
+  function computeGlobalBounds() {
+    let gmin = Infinity, gmax = -Infinity;
+    deaDataCache.features.forEach(f => {
+      (f.properties.data || []).forEach(d => {
+        if (typeof d.Value === 'number') {
+          if (d.Value < gmin) gmin = d.Value;
+          if (d.Value > gmax) gmax = d.Value;
+        }
+      });
+    });
+    if (!isFinite(gmin) || !isFinite(gmax)) {
+      globalMinValue = null;
+      globalMaxValue = null;
+      return;
+    }
+    // add small buffer for nicer display
+    globalMinValue = Math.floor(gmin - 1);
+    globalMaxValue = Math.ceil(gmax + 1);
+  }
+
+  // returns the feature value for current selectedSex & selected year
+  function featureValue(feature) {
     const rec = (feature.properties.data || []).find(
       d => d.Sex === selectedSex && d.GroupedYear === years[currentYearIndex]
     );
     return rec ? rec.Value : null;
   }
 
-  /* Equal-interval breaks for 7 classes */
-  function computeBreaks(data){
+  // compute equal-interval breaks for absolute values (7 classes -> 6 breakpoints)
+  function computeBreaks() {
     const vals = [];
-
-    data.features.forEach(f => {
+    deaDataCache.features.forEach(f => {
       const rec = (f.properties.data || []).find(
         d => d.Sex === selectedSex && d.GroupedYear === years[currentYearIndex]
       );
-      if (rec && typeof rec.Value === "number") vals.push(rec.Value);
+      if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
     });
-
-    if (vals.length === 0){ breaks = []; return; }
-
+    if (vals.length === 0) { breaks = []; return; }
     const min = Math.min(...vals);
     const max = Math.max(...vals);
     const step = (max - min) / 7;
-
-    breaks = Array.from({length:6},(_,i)=> round1(min + step*(i+1)));
+    breaks = Array.from({length:6}, (_, i) => round1(min + step * (i + 1)));
   }
 
-  function getFeatureColor(feature){
-    if (mode === "absolute"){
-      const val = featureValue(feature);
-      if (val == null) return "#ccc";
+  // compute equal-interval breaks for change mode (diffs)
+  function computeChangeBreaks() {
+    const diffs = [];
+    const fYr = years[0], lYr = years[years.length - 1];
+    deaDataCache.features.forEach(f => {
+      const a = (f.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === fYr);
+      const b = (f.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === lYr);
+      if (a && b && typeof a.Value === 'number' && typeof b.Value === 'number') {
+        diffs.push(round1(b.Value - a.Value));
+      }
+    });
+    if (diffs.length === 0) { changeBreaks = []; return; }
+    const min = Math.min(...diffs);
+    const max = Math.max(...diffs);
+    const step = (max - min) / 7;
+    changeBreaks = Array.from({length:6}, (_, i) => round1(min + step * (i + 1)));
+  }
 
+  // assign colour depending on mode
+  function getFeatureColor(feature) {
+    if (mode === 'absolute') {
+      const val = featureValue(feature);
+      if (val == null) return '#ccc';
+      if (breaks.length === 0) return colors[0];
       if (val <= breaks[0]) return colors[0];
       if (val <= breaks[1]) return colors[1];
       if (val <= breaks[2]) return colors[2];
@@ -276,185 +331,311 @@
       if (val <= breaks[4]) return colors[4];
       if (val <= breaks[5]) return colors[5];
       return colors[6];
+    } else {
+      // change mode
+      const fYr = years[0], lYr = years[years.length - 1];
+      const a = (feature.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === fYr);
+      const b = (feature.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === lYr);
+      if (!a || !b || typeof a.Value !== 'number' || typeof b.Value !== 'number') return '#ccc';
+      const diff = round1(b.Value - a.Value);
+      if (changeBreaks.length === 0) return colors[0];
+      if (diff <= changeBreaks[0]) return colors[0];
+      if (diff <= changeBreaks[1]) return colors[1];
+      if (diff <= changeBreaks[2]) return colors[2];
+      if (diff <= changeBreaks[3]) return colors[3];
+      if (diff <= changeBreaks[4]) return colors[4];
+      if (diff <= changeBreaks[5]) return colors[5];
+      return colors[6];
     }
-
-    /* Change mode uses same colours for now */
-    const fYr = years[0], lYr = years[years.length-1];
-    const a = (feature.properties.data||[]).find(d => d.Sex===selectedSex && d.GroupedYear===fYr);
-    const b = (feature.properties.data||[]).find(d => d.Sex===selectedSex && d.GroupedYear===lYr);
-    if (!a || !b) return "#ccc";
-
-    const diff = round1(b.Value - a.Value);
-    return colors[Math.floor(Math.random()*7)]; // placeholder: user can customise if needed
   }
 
-  function updateMapStyles(){
-    if (mode === "absolute") computeBreaks(deaDataCache);
+  // update map fill colours and legend
+  function updateMapStyles() {
+    if (!deaLayer) return;
+    if (mode === 'absolute') computeBreaks();
+    else computeChangeBreaks();
 
     deaLayer.eachLayer(layer => {
       const c = getFeatureColor(layer.feature);
-      layer.setStyle({fillColor: c});
+      layer.setStyle({ fillColor: c });
     });
 
     updateLegend();
   }
 
-  function updateYearLabel(){
-    document.getElementById("year-label").textContent = years[currentYearIndex];
-  }
+  // Update legend: absolute (7 classes) or change mode (7 classes on diffs)
+  function updateLegend() {
+    const div = document.getElementById('legend-content');
+    if (!deaDataCache) return;
 
-  /* Legend updated for 7-class inverted palette */
-  function updateLegend(){
-    const div = document.getElementById("legend-content");
-
-    if (mode === "absolute"){
+    if (mode === 'absolute') {
       const vals = [];
-
       deaDataCache.features.forEach(f => {
-        const rec = (f.properties.data||[]).find(
+        const rec = (f.properties.data || []).find(
           d => d.Sex === selectedSex && d.GroupedYear === years[currentYearIndex]
         );
-        if (rec && typeof rec.Value === "number") vals.push(rec.Value);
+        if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
       });
-
-      const min = vals.length ? round1(Math.min(...vals)) : "n/a";
-      const max = vals.length ? round1(Math.max(...vals)) : "n/a";
+      const min = vals.length ? round1(Math.min(...vals)) : 'n/a';
+      const max = vals.length ? round1(Math.max(...vals)) : 'n/a';
 
       let html = `<b>${selectedSex} (${years[currentYearIndex]})</b><br>`;
       html += `<small>min: ${min} — max: ${max}</small><br><br>`;
 
-      html += `<i style="background:${colors[0]}"></i> ${min} – ${breaks[0]}<br>`;
-      html += `<i style="background:${colors[1]}"></i> ${breaks[0]} – ${breaks[1]}<br>`;
-      html += `<i style="background:${colors[2]}"></i> ${breaks[1]} – ${breaks[2]}<br>`;
-      html += `<i style="background:${colors[3]}"></i> ${breaks[2]} – ${breaks[3]}<br>`;
-      html += `<i style="background:${colors[4]}"></i> ${breaks[3]} – ${breaks[4]}<br>`;
-      html += `<i style="background:${colors[5]}"></i> ${breaks[4]} – ${breaks[5]}<br>`;
-      html += `<i style="background:${colors[6]}"></i> > ${breaks[5]}<br>`;
+      if (breaks.length === 6) {
+        html += `<i style="background:${colors[0]}"></i> ${min} – ${breaks[0]}<br>`;
+        html += `<i style="background:${colors[1]}"></i> ${breaks[0]} – ${breaks[1]}<br>`;
+        html += `<i style="background:${colors[2]}"></i> ${breaks[1]} – ${breaks[2]}<br>`;
+        html += `<i style="background:${colors[3]}"></i> ${breaks[2]} – ${breaks[3]}<br>`;
+        html += `<i style="background:${colors[4]}"></i> ${breaks[3]} – ${breaks[4]}<br>`;
+        html += `<i style="background:${colors[5]}"></i> ${breaks[4]} – ${breaks[5]}<br>`;
+        html += `<i style="background:${colors[6]}"></i> > ${breaks[5]}<br>`;
+      } else {
+        // fallback
+        for (let i=0;i<7;i++) html += `<i style="background:${colors[i]}"></i> class ${i+1}<br>`;
+      }
 
       div.innerHTML = html;
       return;
     }
+
+    // CHANGE MODE legend
+    const diffs = [];
+    const fYr = years[0], lYr = years[years.length - 1];
+    deaDataCache.features.forEach(f => {
+      const a = (f.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === fYr);
+      const b = (f.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === lYr);
+      if (a && b && typeof a.Value === 'number' && typeof b.Value === 'number') {
+        diffs.push(round1(b.Value - a.Value));
+      }
+    });
+
+    const min = diffs.length ? Math.min(...diffs) : 'n/a';
+    const max = diffs.length ? Math.max(...diffs) : 'n/a';
+
+    let html = `<b>Change ${fYr} → ${lYr} (${selectedSex})</b><br>`;
+    html += `<small>min: ${min} — max: ${max}</small><br><br>`;
+
+    if (changeBreaks.length === 6) {
+      html += `<i style="background:${colors[0]}"></i> ${min} – ${changeBreaks[0]}<br>`;
+      html += `<i style="background:${colors[1]}"></i> ${changeBreaks[0]} – ${changeBreaks[1]}<br>`;
+      html += `<i style="background:${colors[2]}"></i> ${changeBreaks[1]} – ${changeBreaks[2]}<br>`;
+      html += `<i style="background:${colors[3]}"></i> ${changeBreaks[2]} – ${changeBreaks[3]}<br>`;
+      html += `<i style="background:${colors[4]}"></i> ${changeBreaks[3]} – ${changeBreaks[4]}<br>`;
+      html += `<i style="background:${colors[5]}"></i> ${changeBreaks[4]} – ${changeBreaks[5]}<br>`;
+      html += `<i style="background:${colors[6]}"></i> > ${changeBreaks[5]}<br>`;
+    } else {
+      for (let i=0;i<7;i++) html += `<i style="background:${colors[i]}"></i> class ${i+1}<br>`;
+    }
+
+    div.innerHTML = html;
   }
 
- function populateSidebar(feature){
-  const props = feature.properties;
-  const curVal = featureValue(feature);
+  // ======================= SIDEBAR CHART BUILD =======================
+  // Build the Chart.js chart for a single feature (DEA)
+  function buildChart(feature) {
+    const ctx = document.getElementById('deaChart').getContext('2d');
 
-  document.getElementById("sidebar-title").textContent =
-    `DEA – ${props.finalr_dea}`;
+    // DEA records across years
+    const deaRecords = years.map(y => {
+      const rec = (feature.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === y);
+      return rec ? round1(rec.Value) : null;
+    });
 
-  document.getElementById("sidebar-meta").innerHTML = `
-    <strong>${selectedSex}</strong><br>
-    Year: ${years[currentYearIndex]}<br>
-    Value: ${curVal != null ? round1(curVal) + " yrs" : "n/a"}
-  `;
-
-  // Build chart for this DEA
-  buildChart(feature);
-}
-
-
- 
-  /* =====================================================
-   Create sidebar line chart for selected DEA
-===================================================== */
-
-function buildChart(feature) {
-  const ctx = document.getElementById("deaChart").getContext("2d");
-
-  // Extract all years + values for the selected DEA + sex
-  const records = years.map(y => {
-    const rec = (feature.properties.data || []).find(
-      d => d.Sex === selectedSex && d.GroupedYear === y
-    );
-    return rec ? rec.Value : null;
-  });
-
-  // If an old chart exists, destroy it first
-  if (deaChart) deaChart.destroy();
-
-  deaChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: years,
-      datasets: [{
-        label: selectedSex,
-        data: records,
-        borderWidth: 2,
-        borderColor: "#0078A8",
-        backgroundColor: "rgba(0,120,168,0.15)",
-        pointRadius: 3,
-        tension: 0.2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          title: { display: true, text: "Life expectancy (years)" },
-          suggestedMin: Math.min(...records) - 0.5,
-          suggestedMax: Math.max(...records) + 0.5
-        },
-        x: {
-          title: { display: true, text: "Year" }
-        }
-      },
-      plugins: {
-        legend: { display: false }
+    // Northern Ireland average: find feature where finalr_dea === "Northern Ireland"
+    let niFeature = null;
+    for (let i=0;i<deaDataCache.features.length;i++) {
+      if ((deaDataCache.features[i].properties || {}).finalr_dea === 'Northern Ireland') {
+        niFeature = deaDataCache.features[i];
+        break;
       }
     }
-  });
-}
+    const niRecords = years.map(y => {
+      if (!niFeature) return null;
+      const rec = (niFeature.properties.data || []).find(d => d.Sex === selectedSex && d.GroupedYear === y);
+      return rec ? round1(rec.Value) : null;
+    });
 
+    // find selectedIndex for annotation - use index in labels (years)
+    const selectedIndex = years.indexOf(years[currentYearIndex]);
 
-  /* ============================
-     UI CONTROLS
-  ============================ */
+    // destroy old chart
+    if (deaChart) deaChart.destroy();
 
-  document.getElementById("year-slider").addEventListener("input", e => {
+    deaChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: years,
+        datasets: [
+          {
+            label: feature.properties.finalr_dea || 'DEA',
+            data: deaRecords,
+            borderColor: '#0078A8',
+            backgroundColor: 'rgba(0,120,168,0.15)',
+            fill: true,
+            pointRadius: 3,
+            tension: 0.3,
+            borderWidth: 2
+          },
+          {
+            label: 'Northern Ireland',
+            data: niRecords,
+            borderColor: '#444',
+            backgroundColor: 'transparent',
+            fill: false,
+            borderDash: [5,5],
+            pointRadius: 0,
+            tension: 0.3,
+            borderWidth: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: {
+            title: { display: true, text: 'Period' }
+          },
+          y: {
+            title: { display: true, text: 'HLE (years)' },
+            min: (globalMinValue != null ? globalMinValue : undefined),
+            max: (globalMaxValue != null ? globalMaxValue : undefined)
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          annotation: {
+            annotations: {
+              shadeLeft: {
+                type: 'box',
+                xMin: 0,
+                xMax: selectedIndex >= 0 ? selectedIndex : 0,
+                backgroundColor: 'rgba(0,0,0,0.04)'
+              },
+              currentYearLine: {
+                type: 'line',
+                xMin: selectedIndex >= 0 ? selectedIndex : 0,
+                xMax: selectedIndex >= 0 ? selectedIndex : 0,
+                borderColor: 'rgba(0,0,0,0.45)',
+                borderWidth: 1,
+                borderDash: [4,4]
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Update the chart annotations when year changes (if chart exists)
+  function updateSidebarChartForSelectedYear() {
+    if (!deaChart) return;
+    const selectedIndex = years.indexOf(years[currentYearIndex]);
+    const ann = deaChart.options.plugins.annotation.annotations;
+    if (ann && ann.currentYearLine) {
+      ann.currentYearLine.xMin = selectedIndex;
+      ann.currentYearLine.xMax = selectedIndex;
+    }
+    if (ann && ann.shadeLeft) {
+      ann.shadeLeft.xMax = selectedIndex;
+    }
+    deaChart.update();
+  }
+
+  // Populate sidebar text and build chart
+  function populateSidebar(feature) {
+    const props = feature.properties || {};
+    const curVal = featureValue(feature);
+    document.getElementById('sidebar-title').textContent = `DEA – ${props.finalr_dea || 'Unknown'}`;
+
+    document.getElementById('sidebar-meta').innerHTML = `
+      <strong>${selectedSex}</strong><br>
+      Period: ${years[0]} → ${years[years.length - 1]}<br>
+      Current (${years[currentYearIndex]}): ${curVal != null ? round1(curVal) + ' yrs' : 'n/a'}
+    `;
+
+    // build chart
+    buildChart(feature);
+  }
+
+  // ======================= UI & INTERACTIONS =======================
+  function updateTabs() {
+    document.getElementById('tab-males').classList.remove('active');
+    document.getElementById('tab-females').classList.remove('active');
+    if (selectedSex === 'Males') document.getElementById('tab-males').classList.add('active');
+    else document.getElementById('tab-females').classList.add('active');
+  }
+
+  // slider input
+  document.getElementById('year-slider').addEventListener('input', e => {
     currentYearIndex = Number(e.target.value);
     updateYearLabel();
     updateMapStyles();
+    updateSidebarChartForSelectedYear();
   });
 
-  document.getElementById("tab-males").onclick = () => {
-    selectedSex = "Males";
+  // tabs
+  document.getElementById('tab-males').onclick = () => {
+    selectedSex = 'Males';
+    updateTabs();
+    computeGlobalBounds();
+    computeBreaks();
+    computeChangeBreaks();
     updateMapStyles();
   };
-  document.getElementById("tab-females").onclick = () => {
-    selectedSex = "Females";
+  document.getElementById('tab-females').onclick = () => {
+    selectedSex = 'Females';
+    updateTabs();
+    computeGlobalBounds();
+    computeBreaks();
+    computeChangeBreaks();
     updateMapStyles();
   };
 
-  document.getElementById("play-btn").onclick = () => {
-    if (playInterval){
+  // play button
+  document.getElementById('play-btn').addEventListener('click', () => {
+    if (playInterval) {
       clearInterval(playInterval);
       playInterval = null;
-      document.getElementById("play-btn").textContent = "▶ Play Years";
+      document.getElementById('play-btn').textContent = '▶ Play Years';
     } else {
-      document.getElementById("play-btn").textContent = "⏸ Pause";
+      document.getElementById('play-btn').textContent = '⏸ Pause';
       playInterval = setInterval(() => {
         currentYearIndex = (currentYearIndex + 1) % years.length;
-        document.getElementById("year-slider").value = currentYearIndex;
+        document.getElementById('year-slider').value = currentYearIndex;
         updateYearLabel();
         updateMapStyles();
-      }, 1500);
+        updateSidebarChartForSelectedYear();
+      }, 1400);
     }
+  });
+
+  // close sidebar
+  document.getElementById('close-sidebar').onclick = () => {
+    document.getElementById('sidebar').style.display = 'none';
+    if (lastHoveredLayer) deaLayer.resetStyle(lastHoveredLayer);
+    lastHoveredLayer = null;
+    if (deaChart) { deaChart.destroy(); deaChart = null; }
   };
 
-  document.getElementById("close-sidebar").onclick = () => {
-    document.getElementById("sidebar").style.display = "none";
-  };
-
+  // mode toggles
   document.querySelectorAll('input[name="mode"]').forEach(r => {
-    r.addEventListener("change", e => {
+    r.addEventListener('change', e => {
       mode = e.target.value;
+      // recompute appropriate breaks
+      if (mode === 'absolute') computeBreaks();
+      else computeChangeBreaks();
       updateMapStyles();
+      // if sidebar open, re-build chart for hovered feature
+      if (lastHoveredLayer && lastHoveredLayer.feature) populateSidebar(lastHoveredLayer.feature);
     });
   });
 
-  </script>
+  // ensure initial tab state correct
+  updateTabs();
 
+  </script>
 </body>
 </html>
