@@ -122,14 +122,19 @@
     <button id="play-btn">▶ Play Years</button>
 
     <div style="margin-top:10px;">
-      <b>Chart scale range</b><br>
-      <label><input type="radio" name="yaxis" value="dynamic">
-        Dynamic (zoom to data)
-      </label><br>
-      <label><input type="radio" name="yaxis" value="fixed" checked>
-        Fixed (show full NI range)
-      </label>
-    </div>
+  <b>Data Display Mode</b><br>
+
+  <label>
+    <input type="radio" name="yaxis" value="dynamic">
+    Data by Year (adjust scale to selected year)
+  </label><br>
+
+  <label>
+    <input type="radio" name="yaxis" value="fixed" checked>
+    Data across Years (use full NI data range)
+  </label>
+</div>
+
   </div>
 
   <div id="sidebar">
