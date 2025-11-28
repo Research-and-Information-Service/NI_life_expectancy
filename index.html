@@ -122,18 +122,18 @@
     <button id="play-btn">▶ Play Years</button>
 
     <div style="margin-top:10px;">
-  <b>Data Display Mode</b><br>
+      <b>Data Display Mode</b><br>
 
-  <label>
-    <input type="radio" name="yaxis" value="dynamic">
-    Data by Year (adjust scale to selected year)
-  </label><br>
+      <label>
+        <input type="radio" name="yaxis" value="dynamic">
+        Data by Year (adjust scale to selected year)
+      </label><br>
 
-  <label>
-    <input type="radio" name="yaxis" value="fixed" checked>
-    Data across Years (use full NI data range)
-  </label>
-</div>
+      <label>
+        <input type="radio" name="yaxis" value="fixed" checked>
+        Data across Years (use full NI data range)
+      </label>
+    </div>
 
   </div>
 
@@ -203,7 +203,10 @@ showSpinner(true);
 ----------------------------------------- */
 
 fetch(geojsonUrl)
-  .then(r => r.json())
+  .then(r => {
+    if (!r.ok) throw new Error('GeoJSON load failed: ' + r.statusText);
+    return r.json();
+  })
   .then(data => {
     deaDataCache = data;
 
@@ -217,7 +220,9 @@ fetch(geojsonUrl)
     updateYearLabel();
 
     computeGlobalBounds();
-    computeBreaks();
+    // initial breaks: if fixed -> global, else -> per-year
+    if (yAxisMode === "fixed") computeGlobalBreaks();
+    else computeBreaks();
 
     createMapLayer();
     updateLegend();
@@ -225,6 +230,11 @@ fetch(geojsonUrl)
     map.fitBounds(deaLayer.getBounds(), { padding: [20, 20] });
 
     showSpinner(false);
+  })
+  .catch(err => {
+    console.error(err);
+    showSpinner(false);
+    alert('Error loading data: ' + err.message);
   });
 
 /* -----------------------------------------
@@ -292,7 +302,28 @@ function computeBreaks() {
     if (rec && typeof rec.Value === "number") vals.push(rec.Value);
   });
 
-  if (!vals.length) return;
+  if (!vals.length) { breaks = []; return; }
+
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const step = (max - min) / 7;
+
+  breaks = Array.from({ length: 6 }, (_, i) =>
+    round1(min + step * (i + 1))
+  );
+}
+
+function computeGlobalBreaks() {
+  const vals = [];
+  deaDataCache.features.forEach(f => {
+    (f.properties.data || []).forEach(d => {
+      if (d.Sex === selectedSex && typeof d.Value === "number") {
+        vals.push(d.Value);
+      }
+    });
+  });
+
+  if (!vals.length) { breaks = []; return; }
 
   const min = Math.min(...vals);
   const max = Math.max(...vals);
@@ -321,7 +352,8 @@ function getFeatureColor(feature) {
 }
 
 function updateMapStyles() {
-  computeBreaks();
+  if (yAxisMode === "fixed") computeGlobalBreaks();
+  else computeBreaks();
 
   deaLayer.eachLayer(layer => {
     const col = getFeatureColor(layer.feature);
@@ -338,18 +370,24 @@ function updateMapStyles() {
 function updateLegend() {
   const div = document.getElementById("legend-content");
 
-  const vals = [];
-  deaDataCache.features.forEach(f => {
-    const rec = (f.properties.data || [])
-      .find(d => d.Sex === selectedSex && d.GroupedYear === years[currentYearIndex]);
-    if (rec && typeof rec.Value === "number") vals.push(rec.Value);
-  });
+  let min, max;
 
-  const min = vals.length ? round1(Math.min(...vals)) : "n/a";
-  const max = vals.length ? round1(Math.max(...vals)) : "n/a";
+  if (yAxisMode === "fixed") {
+    min = (globalMinValue != null) ? globalMinValue : "n/a";
+    max = (globalMaxValue != null) ? globalMaxValue : "n/a";
+  } else {
+    const vals = [];
+    deaDataCache.features.forEach(f => {
+      const rec = (f.properties.data || [])
+        .find(d => d.Sex === selectedSex && d.GroupedYear === years[currentYearIndex]);
+      if (rec && typeof rec.Value === "number") vals.push(rec.Value);
+    });
+    min = vals.length ? round1(Math.min(...vals)) : "n/a";
+    max = vals.length ? round1(Math.max(...vals)) : "n/a";
+  }
 
   let html = `<b>${selectedSex} (${years[currentYearIndex]})</b><br>`;
-  html += `<small>min: ${min} — max: ${max}</small><br><br>`;
+  html += `<small>Range: ${min} to ${max} years</small><br><br>`;
 
   if (breaks.length === 6) {
     html += `<i style="background:${colors[0]}"></i> ${min} – ${breaks[0]}<br>`;
@@ -359,6 +397,8 @@ function updateLegend() {
     html += `<i style="background:${colors[4]}"></i> ${breaks[3]} – ${breaks[4]}<br>`;
     html += `<i style="background:${colors[5]}"></i> ${breaks[4]} – ${breaks[5]}<br>`;
     html += `<i style="background:${colors[6]}"></i> > ${breaks[5]}<br>`;
+  } else {
+    for (let i = 0; i < 7; i++) html += `<i style="background:${colors[i]}"></i> class ${i+1}<br>`;
   }
 
   div.innerHTML = html;
@@ -596,6 +636,14 @@ document.getElementById("close-sidebar").onclick = () => {
 document.querySelectorAll('input[name="yaxis"]').forEach(r => {
   r.addEventListener("change", e => {
     yAxisMode = e.target.value;
+    // recompute global breaks if switching to fixed
+    if (yAxisMode === "fixed") {
+      computeGlobalBounds();
+      computeGlobalBreaks();
+    } else {
+      computeBreaks();
+    }
+    updateMapStyles();
     if (lastHoveredLayer) populateSidebar(lastHoveredLayer.feature);
   });
 });
