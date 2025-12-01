@@ -150,8 +150,11 @@
 ----------------------------------------- */
 
 const colors = [
-  "#28326f", "#265188", "#246b9e", "#2285b3",
-  "#6baccb", "#b4d2e3", "#dee8f1"
+ "#28326f",
+"#25588e",
+"#2285b3",
+"#86bad4",
+"#dee8f1"
 ];
 
 const geojsonUrl = "DEA_data.geojson";
@@ -306,12 +309,13 @@ function computeBreaks() {
 
   const min = Math.min(...vals);
   const max = Math.max(...vals);
-  const step = (max - min) / 7;
+  const step = (max - min) / 5;
 
-  breaks = Array.from({ length: 6 }, (_, i) =>
+  breaks = Array.from({ length: 4 }, (_, i) =>
     round1(min + step * (i + 1))
   );
 }
+
 
 function computeGlobalBreaks() {
   const vals = [];
@@ -327,12 +331,13 @@ function computeGlobalBreaks() {
 
   const min = Math.min(...vals);
   const max = Math.max(...vals);
-  const step = (max - min) / 7;
+  const step = (max - min) / 5;
 
-  breaks = Array.from({ length: 6 }, (_, i) =>
+  breaks = Array.from({ length: 4 }, (_, i) =>
     round1(min + step * (i + 1))
   );
 }
+
 
 /* -----------------------------------------
    MAP COLOURING
@@ -343,12 +348,11 @@ function getFeatureColor(feature) {
   if (val == null || !breaks.length) return "#ccc";
 
   if (val <= breaks[0]) return colors[0];
-  if (val <= breaks[1]) return colors[1];
-  if (val <= breaks[2]) return colors[2];
-  if (val <= breaks[3]) return colors[3];
-  if (val <= breaks[4]) return colors[4];
-  if (val <= breaks[5]) return colors[5];
-  return colors[6];
+if (val <= breaks[1]) return colors[1];
+if (val <= breaks[2]) return colors[2];
+if (val <= breaks[3]) return colors[3];
+return colors[4];
+
 }
 
 function updateMapStyles() {
@@ -389,17 +393,19 @@ function updateLegend() {
   let html = `<b>${selectedSex} (${years[currentYearIndex]})</b><br>`;
   html += `<small>Range: ${min} to ${max} years</small><br><br>`;
 
-  if (breaks.length === 6) {
-    html += `<i style="background:${colors[0]}"></i> ${min} – ${breaks[0]}<br>`;
-    html += `<i style="background:${colors[1]}"></i> ${breaks[0]} – ${breaks[1]}<br>`;
-    html += `<i style="background:${colors[2]}"></i> ${breaks[1]} – ${breaks[2]}<br>`;
-    html += `<i style="background:${colors[3]}"></i> ${breaks[2]} – ${breaks[3]}<br>`;
-    html += `<i style="background:${colors[4]}"></i> ${breaks[3]} – ${breaks[4]}<br>`;
-    html += `<i style="background:${colors[5]}"></i> ${breaks[4]} – ${breaks[5]}<br>`;
-    html += `<i style="background:${colors[6]}"></i> > ${breaks[5]}<br>`;
-  } else {
-    for (let i = 0; i < 7; i++) html += `<i style="background:${colors[i]}"></i> class ${i+1}<br>`;
-  }
+  if (breaks.length === 4) {
+  html += `<i style="background:${colors[0]}"></i> ${min} – ${breaks[0]}<br>`;
+  html += `<i style="background:${colors[1]}"></i> ${breaks[0]} – ${breaks[1]}<br>`;
+  html += `<i style="background:${colors[2]}"></i> ${breaks[1]} – ${breaks[2]}<br>`;
+  html += `<i style="background:${colors[3]}"></i> ${breaks[2]} – ${breaks[3]}<br>`;
+  html += `<i style="background:${colors[4]}"></i> > ${breaks[3]}<br>`;
+}
+ else {
+  breaks.forEach((_, i) => {
+    html += `<i style="background:${colors[i]}"></i> class ${i+1}<br>`;
+  });
+}
+
 
   div.innerHTML = html;
 }
