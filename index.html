@@ -22,86 +22,136 @@
       --control-font: 14px;
       --sidebar-width: 420px;
       --chart-height: 260px;
+      --ui-bg: rgba(255,255,255,0.98);
+      --muted: #666;
+      --accent: #0078A8;
     }
 
-    body { margin: 0; font-family: Arial, sans-serif; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
-    #map { height: 100vh; width: 100%; }
+    html,body { height:100%; margin:0; overflow:hidden; font-family: Arial, sans-serif; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
+    #map { height:100vh; width:100%; }
 
     /* Controls */
     .controls {
       position: absolute;
       top: 10px;
       left: 10px;
-      z-index: 1000;
-      background: rgba(255,255,255,0.98);
+      z-index: 1100;
+      background: var(--ui-bg);
       padding: 10px;
       border-radius: 6px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.25);
       width: var(--control-width);
       font-size: var(--control-font);
+      transition: transform .18s ease, opacity .18s ease;
     }
-    .tabs { margin-bottom: 6px; display:flex; gap:6px; }
+    .controls.min { transform: translateY(-8px) scale(.98); opacity: .92; }
+    .controls-row { display:flex; gap:6px; align-items:center; }
+    .tabs { margin-bottom: 6px; display:flex; gap:6px; flex:1; }
     .tabs button {
-      padding: 6px 10px; border: none; cursor: pointer; background: #eee; border-radius: 4px;
-      flex: 1;
+      padding:6px 10px; border: none; cursor: pointer; background:#eee; border-radius:4px; flex:1;
     }
-    .tabs button.active { background: #0078A8; color: white; }
+    .tabs button.active { background: var(--accent); color: #fff; }
 
-    #year-slider { width: 100%; margin-top: 8px; }
+    .control-toggle { position:absolute; right:8px; top:8px; border:none; background:transparent; cursor:pointer; font-size:14px; color:var(--muted); }
+
+    #year-slider { width:100%; margin-top:8px; }
     #year-label { margin-top:6px; font-weight:700; }
-    #play-btn { margin-top: 8px; padding:6px 10px; background:#eee; border-radius:4px; cursor:pointer; }
+    #play-btn { margin-top:8px; padding:6px 10px; background:#eee; border-radius:4px; cursor:pointer; border:none; }
 
-    .legend { background: rgba(255,255,255,0.98); padding:6px; border-radius:4px; font-size:12px; box-shadow:0 1px 4px rgba(0,0,0,0.15); }
-    .legend i { width: 18px; height: 18px; float:left; margin-right:8px; opacity:0.95; }
+    .small-note { font-size:12px; color:var(--muted); margin-top:6px; }
+
+    /* legend (Leaflet control) */
+    .legend {
+      background: var(--ui-bg);
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+      line-height:1.3;
+    }
+    .legend i { width:18px; height:18px; float:left; margin-right:8px; opacity:0.95; display:inline-block; }
+    .legend .legend-header { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .legend .toggle-legend { cursor:pointer; border:none; background:transparent; color:var(--muted); font-size:13px; }
 
     /* Sidebar */
     #sidebar {
-      position: absolute;
-      right: 10px;
-      top: 10px;
-      width: var(--sidebar-width);
+      position:absolute;
+      right:10px;
+      top:10px;
+      z-index:1100;
+      width:var(--sidebar-width);
       max-height: calc(100vh - 20px);
-      overflow: auto;
-      z-index: 1000;
-      background: rgba(255,255,255,0.98);
-      padding: 12px;
-      border-radius: 6px;
-      display: none;
+      overflow:auto;
+      background: var(--ui-bg);
+      padding:12px;
+      border-radius:6px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      display:none;
     }
-    #chart-container { height: var(--chart-height); }
-    #sidebar h3 { margin: 0 0 6px 0; font-size:16px; }
-    #sidebar-meta { margin-bottom:8px; font-size:13px; color:#333; }
+    #sidebar h3 { margin:0 0 6px 0; font-size:16px; }
+    #sidebar-meta { margin-bottom:8px; color:var(--muted); font-size:13px; }
+    #chart-container { height:var(--chart-height); }
+
+    /* tooltip (info) */
+    .info {
+      display:inline-block;
+      border-radius:50%;
+      width:18px; height:18px;
+      text-align:center;
+      line-height:18px;
+      font-size:12px;
+      background:#f0f0f0;
+      color:#333;
+      margin-left:6px;
+      cursor:help;
+      position:relative;
+    }
+    .info:hover .info-tip { display:block; }
+
+    .info-tip {
+      display:none;
+      position:absolute;
+      left:22px; top:-6px;
+      width:260px;
+      background:#fff;
+      border:1px solid #ddd;
+      padding:8px;
+      font-size:12px;
+      color:#222;
+      border-radius:4px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.12);
+      z-index: 2200;
+    }
 
     /* Spinner */
     #spinner { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2000; display:none; }
-    .spinner-dot { width:14px; height:14px; margin:4px; border-radius:50%; background:#0078A8; display:inline-block; animation: spin 0.9s linear infinite; }
-    @keyframes spin { 0%{transform:scale(1);} 50%{transform:scale(.45);}100%{transform:scale(1);} }
+    .spinner-dot { width:14px; height:14px; margin:4px; border-radius:50%; background:var(--accent); display:inline-block; animation: spin 0.9s linear infinite; }
+    @keyframes spin { 0%{transform:scale(1);}50%{transform:scale(.45);}100%{transform:scale(1);} }
 
     /* Logo bottom-left */
     #assembly-logo { position:absolute; bottom:10px; left:10px; width:140px; z-index:1100; opacity:0.95; pointer-events:none; }
 
-    /* Responsive / iframe friendly */
-    @media (max-width: 900px) {
-      :root{ --control-width: 280px; --sidebar-width: 320px; --chart-height: 200px; --control-font:13px; }
-      .controls { padding:8px; }
-      #assembly-logo { width:110px; }
-      .legend { font-size:11px; padding:6px; }
+    /* responsive */
+    @media (max-width:900px) {
+      :root{ --control-width:280px; --sidebar-width:320px; --chart-height:200px; --control-font:13px; }
+      .controls{ font-size:var(--control-font); }
+      #assembly-logo{ width:110px; }
+    }
+    @media (max-width:650px) {
+      :root{ --control-width:220px; --sidebar-width:260px; --chart-height:160px; --control-font:13px; }
+      .controls{ left:8px; top:8px; padding:8px; }
+      .controls.min { transform:none; opacity:1; }
+      .tabs button{ padding:5px 8px; font-size:13px; }
+      #assembly-logo{ width:96px; left:8px; bottom:8px; }
+      .legend{ font-size:11px; padding:6px; }
+      /* auto-hide legend by default on very small screens */
+      .legend.collapsed { display:none; }
+      /* sidebar auto-hides by default: user must click a polygon to open it */
+      #sidebar { display:none; }
     }
 
-    @media (max-width: 650px) {
-      /* Small screens / iframe: compact UI */
-      :root{ --control-width: 220px; --sidebar-width: 260px; --chart-height: 160px; --control-font:13px; }
-      .controls { left: 8px; top: 8px; padding:8px; }
-      .tabs button { padding:5px 8px; font-size:13px; }
-      #assembly-logo { width: 96px; left:8px; bottom:8px; }
-      .legend { font-size:11px; padding:6px; }
-      /* Sidebar auto-hide by default (click to open) */
-      #sidebar { display: none; }
-    }
-
-    /* Prevent iframe overflow */
-    html, body { overflow: hidden; height: 100%; }
+    /* prevent iframe overflow */
+    html,body { height:100%; }
 
   </style>
 </head>
@@ -110,35 +160,51 @@
   <div id="map"></div>
   <img id="assembly-logo" src="NI_Assembly.svg" alt="NI Assembly Logo">
 
-  <div id="spinner">
+  <div id="spinner" aria-hidden="true">
     <div class="spinner-dot" style="animation-delay:0s"></div>
     <div class="spinner-dot" style="animation-delay:0.12s"></div>
     <div class="spinner-dot" style="animation-delay:0.24s"></div>
   </div>
 
-  <div class="controls" role="region" aria-label="Map controls">
-    <div class="tabs" role="tablist" aria-label="Sex selection">
-      <button id="tab-males" class="active" role="tab" aria-selected="true">Males</button>
-      <button id="tab-females" role="tab" aria-selected="false">Females</button>
+  <!-- Controls -->
+  <div class="controls" id="controls" role="region" aria-label="Map controls">
+    <button class="control-toggle" id="controls-toggle" title="Collapse controls">▾</button>
+
+    <div class="controls-row" style="align-items:center;">
+      <div class="tabs" role="tablist" aria-label="Sex selection">
+        <button id="tab-males" class="active" role="tab" aria-selected="true">Males</button>
+        <button id="tab-females" role="tab" aria-selected="false">Females</button>
+      </div>
     </div>
 
-    <input type="range" id="year-slider" min="0" max="0" step="1" value="0" aria-label="Year slider">
+    <input type="range" id="year-slider" min="0" max="0" step="1" value="0" aria-label="Year slider" />
     <div id="year-label" aria-live="polite"></div>
     <button id="play-btn" aria-pressed="false">▶ Play Years</button>
 
-    <div style="margin-top:10px;">
-      <b>Data Display Mode</b><br>
-      <label style="display:block; margin-top:6px;">
-        <input type="radio" name="yaxis" value="dynamic"> Data by Year (adjust scale to selected year)
-      </label>
-      <label style="display:block; margin-top:6px;">
-        <input type="radio" name="yaxis" value="fixed" checked> Data across Years (use full NI data range)
-      </label>
+    <div class="small-note" style="margin-top:8px;">
+      <b>Data Display Mode</b>
+      <span class="info" aria-hidden="true">ⓘ
+        <div class="info-tip">
+          <strong>Data by Year:</strong> colours and legend are calculated for the year you pick.<br><br>
+          <strong>Data across Years:</strong> colours are calculated from the full data range across all years so colours stay consistent.
+        </div>
+      </span>
+      <div style="margin-top:6px;">
+        <label style="display:block; margin-top:6px;">
+          <input type="radio" name="yaxis" value="dynamic"> Data by Year (adjust scale to selected year)
+        </label>
+        <label style="display:block; margin-top:6px;">
+          <input type="radio" name="yaxis" value="fixed" checked> Data across Years (use full NI data range)
+        </label>
+      </div>
     </div>
-    <!-- legend placed on map bottom-right (Leaflet control), we keep an inline one for narrow screens if needed -->
   </div>
 
-  <div id="sidebar" aria-live="polite">
+  <!-- Leaflet legend (bottom-right) - will be collapsible -->
+  <!-- It's added as a Leaflet control, but we also add a toggle via code. -->
+
+  <!-- Sidebar (click-to-open) -->
+  <div id="sidebar" aria-live="polite" role="region" aria-label="DEA details">
     <button id="close-sidebar" style="float:right">Close</button>
     <h3 id="sidebar-title">DEA details</h3>
     <div id="sidebar-meta"></div>
@@ -150,12 +216,13 @@
    CONFIG & STATE
    =========================== */
 
+/* 5-class ramp: dark (low) -> light (high) */
 const colors = [
-  "#dee8f1", // lightest (highest)
-  "#86bad4",
-  "#2285b3",
+  "#28326f", // darkest (lowest values)
   "#25588e",
-  "#28326f"  // darkest (lowest)
+  "#2285b3",
+  "#86bad4",
+  "#dee8f1"  // lightest (highest values)
 ];
 
 const geojsonUrl = "DEA_data.geojson";
@@ -163,16 +230,16 @@ const geojsonUrl = "DEA_data.geojson";
 let selectedSex = "Males";
 let years = [];
 let currentYearIndex = 0;
-let yAxisMode = "fixed"; // "fixed" => Data across Years (global), "dynamic" => Data by Year
+let yAxisMode = "fixed"; // 'fixed' = Data across Years, 'dynamic' = Data by Year
 
 let deaDataCache = null;
 let deaLayer = null;
-let lastSelectedLayer = null; // layer clicked to open sidebar
+let lastSelectedLayer = null;
 
 let deaChart = null;
 let playInterval = null;
 
-let breaks = []; // 4 breakpoints -> 5 classes
+let breaks = []; // 4 breakpoints for 5 classes
 let globalMinValue = null;
 let globalMaxValue = null;
 
@@ -185,10 +252,19 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap & Carto'
 }).addTo(map);
 
+/* Legend control (bottom-right) */
 const legendControl = L.control({ position: 'bottomright' });
 legendControl.onAdd = function() {
   const div = L.DomUtil.create('div', 'legend');
   div.id = 'legend-content';
+  // header with a collapse toggle
+  div.innerHTML = `
+    <div class="legend-header">
+      <div id="legend-title" style="font-weight:700; font-size:13px;"></div>
+      <button class="toggle-legend" id="legend-toggle" title="Collapse legend">▾</button>
+    </div>
+    <div id="legend-body" style="margin-top:6px;"></div>
+  `;
   return div;
 };
 legendControl.addTo(map);
@@ -202,7 +278,7 @@ function showSpinner(on = true) {
 }
 
 /* ===========================
-   FETCH DATA
+   LOAD GEOJSON
    =========================== */
 
 showSpinner(true);
@@ -214,34 +290,34 @@ fetch(geojsonUrl)
   .then(data => {
     deaDataCache = data;
 
-    // collect years (GroupedYear)
+    // collect years
     const yearSet = new Set();
     deaDataCache.features.forEach(f => {
       (f.properties.data || []).forEach(d => yearSet.add(String(d.GroupedYear)));
     });
     years = Array.from(yearSet).sort();
-    if (years.length === 0) {
+    if (!years.length) {
       showSpinner(false);
       alert('No year data found in GeoJSON.');
       return;
     }
 
-    // set slider range and label
     document.getElementById('year-slider').max = years.length - 1;
     updateYearLabel();
 
-    // compute global bounds
+    // global bounds
     computeGlobalBounds();
 
-    // initial breaks depending on mode
+    // initial breaks
     if (yAxisMode === 'fixed') computeGlobalBreaks();
     else computeBreaks();
 
-    // create the layer (click to open sidebar)
+    // create layer with click behaviour
     createMapLayer();
     updateLegend();
 
     map.fitBounds(deaLayer.getBounds(), { padding: [20,20] });
+
     showSpinner(false);
   })
   .catch(err => {
@@ -254,21 +330,21 @@ fetch(geojsonUrl)
    HELPERS
    =========================== */
 
-function round1(v) { return (typeof v === 'number') ? Math.round(v * 10) / 10 : v; }
+function round1(v){ return (typeof v === 'number') ? Math.round(v * 10) / 10 : v; }
 
-function updateYearLabel() {
-  const label = document.getElementById('year-label');
-  label.textContent = years[currentYearIndex];
+function updateYearLabel(){
+  const lab = document.getElementById('year-label');
+  lab.textContent = years[currentYearIndex];
 }
 
-function featureValue(feature, yearIndex = currentYearIndex, sex = selectedSex) {
+function featureValue(feature, yearIndex = currentYearIndex, sex = selectedSex){
   const y = years[yearIndex];
   const rec = (feature.properties.data || []).find(d => d.Sex === sex && String(d.GroupedYear) === String(y));
   return rec ? rec.Value : null;
 }
 
-/* NI average (simple mean across all DEAs for each year & sex) */
-function computeNIAverage(sex) {
+/* NI average (simple mean) */
+function computeNIAverage(sex){
   return years.map(y => {
     const vals = [];
     deaDataCache.features.forEach(f => {
@@ -276,13 +352,13 @@ function computeNIAverage(sex) {
       if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
     });
     if (!vals.length) return null;
-    const sum = vals.reduce((a,b) => a + b, 0);
+    const sum = vals.reduce((a,b)=>a+b,0);
     return round1(sum / vals.length);
   });
 }
 
-/* Compute global min/max across all years & DEAs for fixed y-axis */
-function computeGlobalBounds() {
+/* GLOBAL BOUNDS */
+function computeGlobalBounds(){
   let gmin = Infinity, gmax = -Infinity;
   deaDataCache.features.forEach(f => {
     (f.properties.data || []).forEach(d => {
@@ -292,34 +368,28 @@ function computeGlobalBounds() {
       }
     });
   });
-  if (!isFinite(gmin) || !isFinite(gmax)) {
-    globalMinValue = null; globalMaxValue = null;
-    return;
-  }
+  if (!isFinite(gmin) || !isFinite(gmax)) { globalMinValue = null; globalMaxValue = null; return; }
   globalMinValue = Math.floor(gmin - 1);
   globalMaxValue = Math.ceil(gmax + 1);
 }
 
-/* -----------------------------
-   Break calculations (5 classes)
-   ----------------------------- */
+/* ===========================
+   BREAKS (5 classes -> 4 breakpoints)
+   =========================== */
 
-/* per-year breaks (Data by Year) */
-function computeBreaks() {
+function computeBreaks(){
   const vals = [];
   deaDataCache.features.forEach(f => {
     const rec = (f.properties.data || []).find(d => d.Sex === selectedSex && String(d.GroupedYear) === String(years[currentYearIndex]));
     if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
   });
   if (!vals.length) { breaks = []; return; }
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const step = (max - min) / 5; // 5 classes -> 4 breakpoints
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const step = (max - min) / 5;
   breaks = Array.from({length:4}, (_,i) => round1(min + step * (i+1)));
 }
 
-/* global breaks (Data across Years) */
-function computeGlobalBreaks() {
+function computeGlobalBreaks(){
   const vals = [];
   deaDataCache.features.forEach(f => {
     (f.properties.data || []).forEach(d => {
@@ -327,14 +397,13 @@ function computeGlobalBreaks() {
     });
   });
   if (!vals.length) { breaks = []; return; }
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
+  const min = Math.min(...vals), max = Math.max(...vals);
   const step = (max - min) / 5;
   breaks = Array.from({length:4}, (_,i) => round1(min + step * (i+1)));
 }
 
-/* get color for a feature (absolute value for selected year) */
-function getFeatureColor(feature) {
+/* colour assignment: lower values -> darker colours (colors[0]), higher -> lighter (colors[4]) */
+function getFeatureColor(feature){
   const val = featureValue(feature);
   if (val == null || !breaks || breaks.length !== 4) return '#ccc';
   if (val <= breaks[0]) return colors[0];
@@ -344,28 +413,28 @@ function getFeatureColor(feature) {
   return colors[4];
 }
 
-/* update map fills + legend depending on mode */
-function updateMapStyles() {
+/* update map fill colours + legend based on yAxisMode */
+function updateMapStyles(){
   if (!deaLayer) return;
-
   if (yAxisMode === 'fixed') computeGlobalBreaks();
   else computeBreaks();
 
   deaLayer.eachLayer(layer => {
-    const col = getFeatureColor(layer.feature);
-    layer.setStyle({ fillColor: col });
+    layer.setStyle({ fillColor: getFeatureColor(layer.feature) });
   });
 
   updateLegend();
 }
 
 /* ===========================
-   LEGEND (Range: X to Y years)
+   LEGEND
    =========================== */
 
-function updateLegend() {
-  const div = document.getElementById('legend-content');
-  if (!deaDataCache) { div.innerHTML = ''; return; }
+function updateLegend(){
+  const root = document.getElementById('legend-content');
+  if (!root) return;
+  const titleEl = root.querySelector('#legend-title');
+  const body = root.querySelector('#legend-body');
 
   let min, max;
   if (yAxisMode === 'fixed') {
@@ -381,8 +450,8 @@ function updateLegend() {
     max = vals.length ? round1(Math.max(...vals)) : 'n/a';
   }
 
-  let html = `<b>${selectedSex} (${years[currentYearIndex]})</b><br>`;
-  html += `<small>Range: ${min} to ${max} years</small><br><br>`;
+  titleEl.innerHTML = `${selectedSex} (${years[currentYearIndex]})`;
+  let html = `<small>Range: ${min} to ${max} years</small><br><br>`;
 
   if (breaks && breaks.length === 4) {
     html += `<i style="background:${colors[0]}"></i> ${min} – ${breaks[0]}<br>`;
@@ -391,20 +460,45 @@ function updateLegend() {
     html += `<i style="background:${colors[3]}"></i> ${breaks[2]} – ${breaks[3]}<br>`;
     html += `<i style="background:${colors[4]}"></i> > ${breaks[3]}<br>`;
   } else {
-    // fallback - adapt to current colour length
-    for (let i=0;i<colors.length;i++) {
-      html += `<i style="background:${colors[i]}"></i> class ${i+1}<br>`;
-    }
+    // fallback: adapt to colours length
+    for (let i=0;i<colors.length;i++) html += `<i style="background:${colors[i]}"></i> class ${i+1}<br>`;
   }
 
-  div.innerHTML = html;
+  body.innerHTML = html;
+}
+
+/* add toggle behaviour for legend collapse */
+function setupLegendToggle(){
+  const root = document.getElementById('legend-content');
+  if (!root) return;
+  const btn = root.querySelector('#legend-toggle');
+  const body = root.querySelector('#legend-body');
+
+  btn.addEventListener('click', () => {
+    if (body.style.display === 'none' || body.style.display === '') {
+      body.style.display = 'block';
+      btn.textContent = '▾';
+    } else {
+      body.style.display = 'none';
+      btn.textContent = '▸';
+    }
+  });
+
+  // auto-collapse on small screens
+  const mq = window.matchMedia('(max-width:650px)');
+  function handleMq(e){
+    if (e.matches) { body.style.display = 'none'; btn.textContent = '▸'; root.classList.add('collapsed'); }
+    else { body.style.display = 'block'; btn.textContent = '▾'; root.classList.remove('collapsed'); }
+  }
+  handleMq(mq);
+  mq.addListener(handleMq);
 }
 
 /* ===========================
    MAP LAYER (click to open sidebar)
    =========================== */
 
-function createMapLayer() {
+function createMapLayer(){
   deaLayer = L.geoJSON(deaDataCache, {
     style: feature => ({
       weight: 1,
@@ -413,20 +507,14 @@ function createMapLayer() {
       fillColor: getFeatureColor(feature)
     }),
     onEachFeature: (feature, layer) => {
-      // click/tap opens sidebar (Option 1)
       layer.on('click', () => {
-        // reset previously selected style
         if (lastSelectedLayer && lastSelectedLayer !== layer) deaLayer.resetStyle(lastSelectedLayer);
-
         lastSelectedLayer = layer;
         layer.setStyle({ weight: 3, color: '#000', fillOpacity: 1 });
-
-        // populate & show sidebar (click only)
         populateSidebar(feature);
         document.getElementById('sidebar').style.display = 'block';
       });
 
-      // optional: double-click resets selection
       layer.on('dblclick', () => {
         if (lastSelectedLayer) { deaLayer.resetStyle(lastSelectedLayer); lastSelectedLayer = null; }
         document.getElementById('sidebar').style.display = 'none';
@@ -434,13 +522,16 @@ function createMapLayer() {
       });
     }
   }).addTo(map);
+
+  // after layer created, ensure legend toggle hookup
+  setupLegendToggle();
 }
 
 /* ===========================
    CHART BUILD
    =========================== */
 
-function buildChart(feature) {
+function buildChart(feature){
   const ctx = document.getElementById('deaChart').getContext('2d');
 
   const deaRecords = years.map(y => {
@@ -450,7 +541,6 @@ function buildChart(feature) {
 
   const niRecords = computeNIAverage(selectedSex);
 
-  // determine chart min/max depending on yAxisMode
   let chartMin = null, chartMax = null;
   if (yAxisMode === 'fixed' && globalMinValue != null && globalMaxValue != null) {
     chartMin = globalMinValue; chartMax = globalMaxValue;
@@ -465,7 +555,6 @@ function buildChart(feature) {
   }
 
   const selIdx = currentYearIndex;
-
   if (deaChart) deaChart.destroy();
 
   deaChart = new Chart(ctx, {
@@ -518,7 +607,7 @@ function buildChart(feature) {
 }
 
 /* update only annotations when year changes */
-function updateSidebarChartForSelectedYear() {
+function updateSidebarChartForSelectedYear(){
   if (!deaChart) return;
   const idx = currentYearIndex;
   const ann = deaChart.options.plugins.annotation.annotations;
@@ -533,7 +622,7 @@ function updateSidebarChartForSelectedYear() {
    SIDEBAR
    =========================== */
 
-function populateSidebar(feature) {
+function populateSidebar(feature){
   const props = feature.properties || {};
   const curVal = featureValue(feature);
 
@@ -551,7 +640,7 @@ function populateSidebar(feature) {
    UI EVENTS
    =========================== */
 
-function updateTabs() {
+function updateTabs(){
   document.getElementById('tab-males').classList.remove('active');
   document.getElementById('tab-females').classList.remove('active');
   if (selectedSex === 'Males') {
@@ -565,6 +654,22 @@ function updateTabs() {
   }
 }
 
+/* controls toggle (collapse/expand) */
+const controls = document.getElementById('controls');
+const ctrlToggle = document.getElementById('controls-toggle');
+ctrlToggle.addEventListener('click', () => {
+  if (controls.classList.contains('min')) {
+    controls.classList.remove('min');
+    ctrlToggle.textContent = '▾';
+    ctrlToggle.title = 'Collapse controls';
+  } else {
+    controls.classList.add('min');
+    ctrlToggle.textContent = '▸';
+    ctrlToggle.title = 'Expand controls';
+  }
+});
+
+/* tabs */
 document.getElementById('tab-males').onclick = () => {
   selectedSex = 'Males';
   updateTabs();
@@ -572,7 +677,6 @@ document.getElementById('tab-males').onclick = () => {
   updateMapStyles();
   if (lastSelectedLayer && lastSelectedLayer.feature) populateSidebar(lastSelectedLayer.feature);
 };
-
 document.getElementById('tab-females').onclick = () => {
   selectedSex = 'Females';
   updateTabs();
@@ -581,6 +685,7 @@ document.getElementById('tab-females').onclick = () => {
   if (lastSelectedLayer && lastSelectedLayer.feature) populateSidebar(lastSelectedLayer.feature);
 };
 
+/* slider */
 document.getElementById('year-slider').addEventListener('input', e => {
   currentYearIndex = Number(e.target.value);
   updateYearLabel();
@@ -588,6 +693,7 @@ document.getElementById('year-slider').addEventListener('input', e => {
   updateSidebarChartForSelectedYear();
 });
 
+/* play button */
 document.getElementById('play-btn').addEventListener('click', () => {
   if (playInterval) {
     clearInterval(playInterval); playInterval = null;
@@ -606,6 +712,7 @@ document.getElementById('play-btn').addEventListener('click', () => {
   }, 1400);
 });
 
+/* close sidebar */
 document.getElementById('close-sidebar').onclick = () => {
   document.getElementById('sidebar').style.display = 'none';
   if (lastSelectedLayer) deaLayer.resetStyle(lastSelectedLayer);
@@ -617,7 +724,6 @@ document.getElementById('close-sidebar').onclick = () => {
 document.querySelectorAll('input[name="yaxis"]').forEach(r => {
   r.addEventListener('change', e => {
     yAxisMode = e.target.value;
-    // recompute breaks and legend/style
     if (yAxisMode === 'fixed') {
       computeGlobalBounds();
       computeGlobalBreaks();
@@ -629,9 +735,10 @@ document.querySelectorAll('input[name="yaxis"]').forEach(r => {
   });
 });
 
-/* Close sidebar if map area clicked (convenience) */
+/* legend toggle (delegated) - already initialized in createMapLayer via setupLegendToggle */
+
+/* close sidebar on map click if small screen */
 map.on('click', () => {
-  // only close on small screens where sidebar auto-hides or when a selection exists
   const w = window.innerWidth || document.documentElement.clientWidth;
   if (w <= 650) {
     document.getElementById('sidebar').style.display = 'none';
@@ -641,7 +748,7 @@ map.on('click', () => {
   }
 });
 
-/* Make legend accessible - ensure initial setup */
+/* initial UI state */
 updateTabs();
 
 </script>
