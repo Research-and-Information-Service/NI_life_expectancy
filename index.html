@@ -203,15 +203,102 @@ document.addEventListener('click',(e)=>{ if(e.target && e.target.id==='legend-to
 (function autoCollapseLegendOnSmall(){ const mq = window.matchMedia('(max-width:650px)'); function handler(m){ const btn = document.getElementById('legend-toggle'); const body = document.getElementById('legend-body'); if(!btn||!body) return; if(m.matches){ body.style.display='none'; btn.textContent='▸'; document.querySelector('.legend')?.classList.add('collapsed'); } else { body.style.display='block'; btn.textContent='▾'; document.querySelector('.legend')?.classList.remove('collapsed'); } } handler(mq); mq.addListener(handler); })();
 
 /* CHART */
-function buildChart(feature){ const ctx = document.getElementById('deaChart').getContext('2d');
-  const deaRecords = years.map(y=>{ const rec=(feature.properties.data||[]).find(d=>d.Sex===selectedSex && String(d.GroupedYear)===String(y)); return rec&&typeof rec.Value==='number'?round1(rec.Value):null; });
+function buildChart(feature) {
+  const ctx = document.getElementById('deaChart').getContext('2d');
+
+  const deaRecords = years.map(y => {
+    const rec = (feature.properties.data || []).find(
+      d => d.Sex === selectedSex && String(d.GroupedYear) === String(y)
+    );
+    return rec && typeof rec.Value === 'number' ? round1(rec.Value) : null;
+  });
+
   const niRecords = computeNIAverage(selectedSex);
-  let chartMin=null, chartMax=null; if(yAxisMode==='fixed' && globalMinValue!=null && globalMaxValue!=null){ chartMin=globalMinValue; chartMax=globalMaxValue; } else { const combined=[]; deaRecords.forEach(v=>{ if(typeof v==='number') combined.push(v); }); niRecords.forEach(v=>{ if(typeof v==='number') combined.push(v); }); if(combined.length){ chartMin = Math.floor(Math.min(...combined)-1); chartMax = Math.ceil(Math.max(...combined)+1); } }
-  const selIdx = currentYearIndex; if(deaChart) deaChart.destroy();
-  deaChart = new Chart(ctx, { type:'line', data:{ labels: years, datasets:[ { label: feature.properties.finalr_dea||'DEA', data: deaRecords, borderColor:'#0078A8', backgroundColor:'rgba(0,120,168,0.16)', fill:true, pointRadius:3, tension:0.25, borderWidth:2 }, { label:'Northern Ireland (avg)', data: niRecords, borderColor:'#444', backgroundColor:'transparent', fill:false, borderDash:[5,5], pointRadius:0, tension:0.25, borderWidth:2 } ] }, options:{ responsive:true, maintainAspectRatio:false, animation:false, scales:{ x:{ title:{ display:true, text:'Period' } }, y:{ title:{ display:true, text:'HLE (years)' }, min: chartMin, max: chartMax } }, plugins:{ legend:{ display:false }, annotation:{ annotations:{ shadeLeft:{ type:'box', xMin:0, xMax:selIdx, backgroundColor:'rgba(0,0,0,0.04)' }, currentYearLine:{ type:'line', xMin:selIdx, xMax:selIdx, borderColor:'rgba(0,0,0,0.45)', borderDash:[4,4], borderWidth:1 } } } } } );
+
+  let chartMin = null, chartMax = null;
+  if (yAxisMode === 'fixed' && globalMinValue != null && globalMaxValue != null) {
+    chartMin = globalMinValue;
+    chartMax = globalMaxValue;
+  } else {
+    const combined = [];
+    deaRecords.forEach(v => { if (typeof v === 'number') combined.push(v); });
+    niRecords.forEach(v => { if (typeof v === 'number') combined.push(v); });
+    if (combined.length) {
+      chartMin = Math.floor(Math.min(...combined) - 1);
+      chartMax = Math.ceil(Math.max(...combined) + 1);
+    }
+  }
+
+  const selIdx = currentYearIndex;
+  if (deaChart) deaChart.destroy();
+
+  deaChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [
+        {
+          label: feature.properties.finalr_dea || 'DEA',
+          data: deaRecords,
+          borderColor: '#0078A8',
+          backgroundColor: 'rgba(0,120,168,0.16)',
+          fill: true,
+          pointRadius: 3,
+          tension: 0.25,
+          borderWidth: 2
+        },
+        {
+          label: 'Northern Ireland (avg)',
+          data: niRecords,
+          borderColor: '#444',
+          backgroundColor: 'transparent',
+          fill: false,
+          borderDash: [5, 5],
+          pointRadius: 0,
+          tension: 0.25,
+          borderWidth: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      scales: {
+        x: { title: { display: true, text: 'Period' } },
+        y: { title: { display: true, text: 'HLE (years)' }, min: chartMin, max: chartMax }
+      },
+      plugins: {
+        legend: { display: false },
+        annotation: {
+          annotations: {
+            shadeLeft: {
+              type: 'box',
+              xMin: 0,
+              xMax: selIdx,
+              backgroundColor: 'rgba(0,0,0,0.04)'
+            },
+            currentYearLine: {
+              type: 'line',
+              xMin: selIdx,
+              xMax: selIdx,
+              borderColor: 'rgba(0,0,0,0.45)',
+              borderDash: [4, 4],
+              borderWidth: 1
+            }
+          }
+        }
+      }
+    }
+  });
+
   // adjust label dashed line length (short, proportional)
-  const niLine = document.getElementById('ni-average-line'); if(niLine && ctx && ctx.canvas){ niLine.style.width = Math.min(ctx.canvas.offsetWidth/3, 120) + 'px'; }
+  const niLine = document.getElementById('ni-average-line');
+  if (niLine && ctx && ctx.canvas) {
+    niLine.style.width = Math.min(ctx.canvas.offsetWidth / 3, 120) + 'px';
+  }
 }
+
 function updateSidebarChartForSelectedYear(){ if(!deaChart) return; const idx = currentYearIndex; const ann = deaChart.options.plugins.annotation.annotations; if(ann){ if(ann.currentYearLine){ ann.currentYearLine.xMin = idx; ann.currentYearLine.xMax = idx; } if(ann.shadeLeft) ann.shadeLeft.xMax = idx; } deaChart.update(); const chartCanvas = document.getElementById('deaChart'); const niLine = document.getElementById('ni-average-line'); if(chartCanvas && niLine) niLine.style.width = Math.min(chartCanvas.offsetWidth/3, 120) + 'px'; }
 
 /* SIDEBAR */
