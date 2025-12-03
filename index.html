@@ -168,6 +168,23 @@
       .legend{ display:none; } /* hide default legend on tiny screens to save space */
       #assembly-logo{ width:86px; left:8px; bottom:8px; }
     }
+  /* ===================
+   NI Average dashed line for chart legend
+   =================== */
+#ni-average-line {
+  display: inline-block;
+  border-bottom: 2px dashed #444;
+  height: 0;
+  vertical-align: middle;
+  width: 100%;   /* default full width */
+}
+#chart-legend {
+  margin-top: 6px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
   </style>
 </head>
@@ -211,7 +228,14 @@
     <button id="close-sidebar" style="float:right">Close</button>
     <h3 id="sidebar-title"></h3>
     <div id="sidebar-meta"></div>
-    <div id="chart-container"><canvas id="deaChart"></canvas></div>
+    <div id="chart-container">
+  <canvas id="deaChart"></canvas>
+  <div id="chart-legend" style="margin-top:6px; font-size:12px; display:flex; align-items:center; gap:4px;">
+    <span id="ni-average-line"></span>
+    <span>NI average</span>
+  </div>
+</div>
+
   </div>
 
 <script>
@@ -627,6 +651,7 @@ function buildChart(feature){
       }
     }
   });
+
 }
 
 function updateSidebarChartForSelectedYear(){
@@ -638,6 +663,12 @@ function updateSidebarChartForSelectedYear(){
     if (ann.shadeLeft) { ann.shadeLeft.xMax = idx; }
     deaChart.update();
   }
+// Adjust dashed line width to match chart width
+const chartCanvas = document.getElementById('deaChart');
+const niLine = document.getElementById('ni-average-line');
+if (chartCanvas && niLine) {
+  niLine.style.width = chartCanvas.offsetWidth + 'px';
+}
 }
 
 /* populate sidebar */
