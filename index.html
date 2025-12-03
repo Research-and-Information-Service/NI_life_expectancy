@@ -1,75 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NI DEA Life Expectancy Map</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NI DEA Life Expectancy Map</title>
 
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Chart.js -->
-  <script src="https://unpkg.com/chart.js@4.3.0/dist/chart.umd.js"></script>
+<!-- Chart.js -->
+<script src="https://unpkg.com/chart.js@4.3.0/dist/chart.umd.js"></script>
+<!-- Chart.js Annotation Plugin -->
+<script src="https://unpkg.com/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script>Chart.register(window['chartjs-plugin-annotation']);</script>
 
-  <!-- Chart.js Annotation Plugin -->
-  <script src="https://unpkg.com/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
-  <script>Chart.register(window['chartjs-plugin-annotation']);</script>
+<style>
+:root{
+  --control-width: 220px;
+  --control-font: 13px;
+  --sidebar-width: 360px;
+  --chart-height: 220px;
+  --ui-bg: rgba(255,255,255,0.98);
+  --muted: #666;
+  --accent: #0078A8;
+  --legend-width: 160px;
+}
 
-  <style>
-    :root{
-      --control-width: 220px;
-      --control-font: 13px;
-      --sidebar-width: 360px;
-      --chart-height: 220px;
-      --ui-bg: rgba(255,255,255,0.98);
-      --muted: #666;
-      --accent: #0078A8;
-      --legend-width: 160px;
-    }
+html,body { height:100%; margin:0; font-family: Arial, sans-serif; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;}
+#map { height:100vh; width:100%; }
 
-    html,body { height:100%; margin:0; font-family: Arial, sans-serif; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;}
-    #map { height:100vh; width:100%; }
+/* Controls */
+.controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1200;
+  background: var(--ui-bg);
+  padding: 8px;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  width: var(--control-width);
+  font-size: var(--control-font);
+  transition: transform .18s ease, opacity .18s ease;
+}
+.controls.min { transform: translateY(-6px) scale(.98); opacity:.94; }
+.control-toggle { position:absolute; right:6px; top:6px; border:none; background:transparent; cursor:pointer; color:var(--muted); font-size:14px; }
 
-    /* Controls */
-    .controls {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 1200;
-      background: var(--ui-bg);
-      padding: 8px;
-      border-radius: 6px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.18);
-      width: var(--control-width);
-      font-size: var(--control-font);
-      transition: transform .18s ease, opacity .18s ease;
-    }
-    .controls.min { transform: translateY(-6px) scale(.98); opacity:.94; }
-    .control-toggle { position:absolute; right:6px; top:6px; border:none; background:transparent; cursor:pointer; color:var(--muted); font-size:14px; }
+.tabs { display:flex; gap:6px; margin-bottom:6px; }
+.tabs button { flex:1; padding:6px 8px; border: none; background:#eee; border-radius:4px; cursor:pointer; }
+.tabs button.active { background:var(--accent); color:white; }
 
-    .tabs { display:flex; gap:6px; margin-bottom:6px; }
-    .tabs button { flex:1; padding:6px 8px; border: none; background:#eee; border-radius:4px; cursor:pointer; }
-    .tabs button.active { background:var(--accent); color:white; }
+#year-slider { width:100%; margin-top:8px; }
+#year-label { margin-top:6px; font-weight:700; font-size:13px; }
+#play-btn { margin-top:8px; padding:6px 10px; background:#eee; border-radius:4px; cursor:pointer; border:none; }
 
-    #year-slider { width:100%; margin-top:8px; }
-    #year-label { margin-top:6px; font-weight:700; font-size:13px; }
-    #play-btn { margin-top:8px; padding:6px 10px; background:#eee; border-radius:4px; cursor:pointer; border:none; }
+.small-note { font-size:12px; color:var(--muted); margin-top:8px; }
 
-    .small-note { font-size:12px; color:var(--muted); margin-top:8px; }
+/* Tooltip (info) */
+.info { display:inline-block; border-radius:50%; width:18px; height:18px; text-align:center; line-height:18px; font-size:12px; background:#f0f0f0; color:#333; margin-left:6px; cursor:help; position:relative; }
+.info-tip { display:none; position:absolute; left:22px; top:-6px; width:240px; background:#fff; border:1px solid #ddd; padding:8px; font-size:12px; color:#222; border-radius:4px; box-shadow:0 2px 6px rgba(0,0,0,0.12); z-index:2500; }
+.info:hover .info-tip { display:block; }
 
-    /* Tooltip (info) */
-    .info { display:inline-block; border-radius:50%; width:18px; height:18px; text-align:center; line-height:18px; font-size:12px; background:#f0f0f0; color:#333; margin-left:6px; cursor:help; position:relative; }
-    .info-tip { display:none; position:absolute; left:22px; top:-6px; width:240px; background:#fff; border:1px solid #ddd; padding:8px; font-size:12px; color:#222; border-radius:4px; box-shadow:0 2px 6px rgba(0,0,0,0.12); z-index:2500; }
-    .info:hover .info-tip { display:block; }
-
-    /* =========================
-   LEGEND - TIGHTER & CLEANER
-   ========================= */
+/* Legend */
 .legend {
-  width: auto;           /* shrink to fit content */
-  min-width: 0;          /* remove default minimum */
-  padding: 6px 8px;      /* smaller padding around content */
+  width: auto;
+  min-width: 0;
+  padding: 6px 8px;
   line-height: 1.3;
   font-size: 12px;
   background: rgba(255,255,255,0.95);
@@ -88,596 +85,152 @@
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 4px;             /* smaller gap between swatch and text */
-  margin-bottom: 4px;   /* smaller spacing between rows */
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
 .legend-swatch {
-  width: 18px;           /* smaller swatch */
+  width: 18px;
   height: 14px;
   border-radius: 3px;
   flex: 0 0 auto;
 }
 
 .legend-item > div {
-  white-space: nowrap;   /* prevents text from wrapping unnecessarily */
+  white-space: nowrap;
 }
 
-
-    /* Sidebar */
-    #sidebar {
-      position:absolute; right:10px; top:10px;
-      z-index:1200;
-      width:var(--sidebar-width);
-      max-height: calc(100vh - 20px);
-      overflow:auto;
-      background: var(--ui-bg);
-      padding:10px;
-      border-radius:6px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.18);
-      display:none;
-    }
-    #sidebar h3 { margin:0 0 6px 0; font-size:16px; }
-    #sidebar-meta { margin-bottom:8px; color:var(--muted); font-size:13px; }
-    #chart-container { height:var(--chart-height); }
-
-    /* label for selected DEA (divIcon) */
-    .dea-label {
-      display:inline-block;
-      font-weight:700;
-      font-size:13px;
-      line-height:1;
-      padding:6px 8px;
-      border-radius:6px;
-      background: rgba(255,255,255,0.9);
-      color:#111;
-      text-align:center;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-      /* halo: using text-shadow for strong outline */
-      text-shadow:
-         -1px -1px 0 #fff,
-         1px -1px 0 #fff,
-         -1px 1px 0 #fff,
-         1px 1px 0 #fff;
-      transform: translate(-50%,-50%);
-      pointer-events:none;
-    }
-
-    /* transitions for polygons and legend items */
-    .leaflet-interactive { transition: fill .32s ease, fill-opacity .32s ease, stroke .28s ease; }
-    .legend-item { transition: opacity .28s ease, transform .28s ease; }
-
-    /* Spinner */
-    #spinner { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2000; display:none; }
-    .spinner-dot { width:14px; height:14px; margin:4px; border-radius:50%; background:var(--accent); display:inline-block; animation: spin 0.9s linear infinite; }
-    @keyframes spin { 0%{transform:scale(1);}50%{transform:scale(.45);}100%{transform:scale(1);} }
-
-    /* Logo */
-    #assembly-logo { position:absolute; bottom:10px; left:10px; width:120px; z-index:1100; opacity:0.95; pointer-events:none; }
-
-    /* Responsive reductions */
-    @media (max-width:900px){
-      :root{ --control-width:260px; --sidebar-width:300px; --chart-height:180px; --control-font:13px; --legend-width:140px; }
-      #assembly-logo{ width:98px; }
-    }
-
-    @media (max-width:650px){
-      :root{ --control-width:200px; --sidebar-width:240px; --chart-height:150px; --control-font:12px; --legend-width:120px; }
-      .controls{ left:8px; top:8px; padding:6px; }
-      .controls.min{ transform:none; opacity:1; }
-      .legend{ display:none; } /* hide default legend on tiny screens to save space */
-      #assembly-logo{ width:86px; left:8px; bottom:8px; }
-    }
-  /* ===================
-   NI Average dashed line for chart legend
-   =================== */
-#ni-average-line {
-  display: inline-block;
-  border-bottom: 2px dashed #444;
-  height: 0;
-  vertical-align: middle;
-  width: 100%;   /* default full width */
+/* Sidebar */
+#sidebar {
+  position:absolute; right:10px; top:10px;
+  z-index:1200;
+  width:var(--sidebar-width);
+  max-height: calc(100vh - 20px);
+  overflow:auto;
+  background: var(--ui-bg);
+  padding:10px;
+  border-radius:6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  display:none;
 }
-#chart-legend {
-  margin-top: 6px;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+#sidebar h3 { margin:0 0 6px 0; font-size:16px; }
+#sidebar-meta { margin-bottom:8px; color:var(--muted); font-size:13px; }
+#chart-container { height:var(--chart-height); }
+
+/* DEA label */
+.dea-label {
+  display:inline-block;
+  font-weight:700;
+  font-size:13px;
+  line-height:1;
+  padding:6px 8px;
+  border-radius:6px;
+  background: rgba(255,255,255,0.9);
+  color:#111;
+  text-align:center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+  transform: translate(-50%,-50%);
+  pointer-events:none;
 }
+
+/* Spinner */
+#spinner { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2000; display:none; }
+.spinner-dot { width:14px; height:14px; margin:4px; border-radius:50%; background:var(--accent); display:inline-block; animation: spin 0.9s linear infinite; }
+@keyframes spin { 0%{transform:scale(1);}50%{transform:scale(.45);}100%{transform:scale(1);} }
+
+/* Logo */
+#assembly-logo { position:absolute; bottom:10px; left:10px; width:120px; z-index:1100; opacity:0.95; pointer-events:none; }
+
+/* Responsive */
+@media (max-width:900px){
+  :root{ --control-width:260px; --sidebar-width:300px; --chart-height:180px; --control-font:13px; --legend-width:140px; }
+  #assembly-logo{ width:98px; }
+}
+@media (max-width:650px){
+  :root{ 
+    --control-width:200px; 
+    --sidebar-width:240px; 
+    --chart-height:150px; 
+    --control-font:12px; 
+    --legend-width:120px; 
+  }
+  .controls{ left:8px; top:8px; padding:6px; }
+  .controls.min{ transform:none; opacity:1; }
+  .legend{ display:none; }
+  #assembly-logo{ width:86px; left:8px; bottom:8px; }
+  #sidebar { top:5px; right:5px; width:90%; max-height:90vh; padding:8px; overflow:auto; }
+  #chart-container { height:40vh; min-height:150px; }
+}
+
+/* NI Average label */
 #ni-average-label {
-  font-size: 12px;
-  color: #444;
-  font-weight: bold;
-  display: inline-flex; /* shrink-wrap to content */
-  align-items: center;
-  gap: 6px; /* space between text and line */
+  font-size:12px;
+  color:#444;
+  font-weight:bold;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
 }
-
 #ni-average-label .ni-average-line {
-  width: 100px; /* adjust length as needed */
-  height: 2px; 
+  height:2px;
   background: repeating-linear-gradient(to right, #444 0, #444 5px, transparent 5px, transparent 10px);
-  display: inline-block;
+  display:inline-block;
 }
-
-
-
-
-  </style>
+</style>
 </head>
 <body>
 
-  <div id="map"></div>
-  <img id="assembly-logo" src="NI_Assembly.svg" alt="NI Assembly Logo" />
+<div id="map"></div>
+<img id="assembly-logo" src="NI_Assembly.svg" alt="NI Assembly Logo" />
 
-  <div id="spinner"><div class="spinner-dot"></div><div class="spinner-dot" style="animation-delay:.12s"></div><div class="spinner-dot" style="animation-delay:.24s"></div></div>
+<div id="spinner">
+  <div class="spinner-dot"></div>
+  <div class="spinner-dot" style="animation-delay:.12s"></div>
+  <div class="spinner-dot" style="animation-delay:.24s"></div>
+</div>
 
-  <!-- Controls -->
-  <div class="controls" id="controls" role="region" aria-label="Map controls">
-    <button class="control-toggle" id="controls-toggle" title="Collapse controls">▾</button>
-
-    <div class="tabs" role="tablist" aria-label="Sex selection">
-      <button id="tab-males" class="active" aria-selected="true">Males</button>
-      <button id="tab-females" aria-selected="false">Females</button>
-    </div>
-
-    <input type="range" id="year-slider" min="0" max="0" step="1" aria-label="Year slider" />
-    <div id="year-label" aria-live="polite"></div>
-
-    <button id="play-btn" aria-pressed="false">▶ Play Years</button>
-
-    <div class="small-note">
-      <b>Data Display Mode</b>
-      <span class="info">ⓘ
-        <div class="info-tip">
-          <strong>Data by year:</strong> colours & legend update based only on the selected year.<br><br>
-          <strong>Data across years:</strong> colours & legend use the full NI range across all years.
-        </div>
-      </span>
-
-      <label style="display:block; margin-top:6px;"><input type="radio" name="yaxis" value="dynamic"> Data by year</label>
-      <label style="display:block; margin-top:6px;"><input type="radio" name="yaxis" value="fixed" checked> Data across years</label>
-    </div>
+<!-- Controls -->
+<div class="controls" id="controls" role="region" aria-label="Map controls">
+  <button class="control-toggle" id="controls-toggle" title="Collapse controls">▾</button>
+  <div class="tabs" role="tablist" aria-label="Sex selection">
+    <button id="tab-males" class="active" aria-selected="true">Males</button>
+    <button id="tab-females" aria-selected="false">Females</button>
   </div>
-
-  <!-- Sidebar -->
-  <div id="sidebar" aria-live="polite" role="region" aria-label="DEA details">
-    <button id="close-sidebar" style="float:right">Close</button>
-    <h3 id="sidebar-title"></h3>
-    <div id="sidebar-meta"></div>
-    <div id="chart-container">
-  <div id="ni-average-label">
-  <span>NI average:</span>
-  <span class="ni-average-line"></span>
-</div>
-<canvas id="deaChart"></canvas>
-
-
-
-
-</div>
-
-</div>
-
+  <input type="range" id="year-slider" min="0" max="0" step="1" aria-label="Year slider" />
+  <div id="year-label" aria-live="polite"></div>
+  <button id="play-btn" aria-pressed="false">▶ Play Years</button>
+  <div class="small-note">
+    <b>Data Display Mode</b>
+    <span class="info">ⓘ
+      <div class="info-tip">
+        <strong>Data by year:</strong> colours & legend update based only on the selected year.<br><br>
+        <strong>Data across years:</strong> colours & legend use the full NI range across all years.
+      </div>
+    </span>
+    <label style="display:block; margin-top:6px;"><input type="radio" name="yaxis" value="dynamic"> Data by year</label>
+    <label style="display:block; margin-top:6px;"><input type="radio" name="yaxis" value="fixed" checked> Data across years</label>
   </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar" aria-live="polite" role="region" aria-label="DEA details">
+  <button id="close-sidebar" style="float:right">Close</button>
+  <h3 id="sidebar-title"></h3>
+  <div id="sidebar-meta"></div>
+  <div id="chart-container">
+    <div id="ni-average-label">
+      <span>NI average:</span>
+      <span class="ni-average-line"></span>
+    </div>
+    <canvas id="deaChart"></canvas>
+  </div>
+</div>
 
 <script>
-/* ===========================
-   CONFIG & STATE
-   =========================== */
+// ... Your existing JS code here ...
 
-/* Colors: darkest (low) -> lightest (high) */
-const colors = ["#28326f","#25588e","#2285b3","#86bad4","#dee8f1"];
-
-const geojsonUrl = "DEA_data.geojson";
-
-let selectedSex = "Males";
-let years = [];
-let currentYearIndex = 0;
-let yAxisMode = "fixed"; // 'fixed' = Data across years (global), 'dynamic' = Data by year
-
-let deaDataCache = null;
-let deaLayer = null;
-let lastSelectedLayer = null;
-let selectedLabelMarker = null;
-
-let deaChart = null;
-let playInterval = null;
-
-let breaks = []; // 4 breakpoints for 5 classes
-let globalMinValue = null;
-let globalMaxValue = null;
-
-/* ===========================
-   MAP INIT
-   =========================== */
-
-const map = L.map('map', {preferCanvas:true}).setView([54.7,-6.6],8);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{
-  attribution: '&copy; OpenStreetMap & Carto'
-}).addTo(map);
-
-/* Legend control */
-const legendControl = L.control({position:'bottomright'});
-legendControl.onAdd = function(){
-  const div = L.DomUtil.create('div','legend');
-  div.id = 'legend-control';
-  div.innerHTML = `
-    <div class="legend-header">
-      <div id="legend-title" style="font-weight:700;"></div>
-      <button id="legend-toggle" class="toggle-legend" title="Collapse legend">▾</button>
-    </div>
-    <div id="legend-body" style="margin-top:8px;"></div>
-  `;
-  return div;
-};
-legendControl.addTo(map);
-
-/* ===========================
-   SPINNER
-   =========================== */
-function showSpinner(on=true){ document.getElementById('spinner').style.display = on ? 'block' : 'none'; }
-
-/* ===========================
-   LOAD GEOJSON
-   =========================== */
-
-showSpinner(true);
-fetch(geojsonUrl)
-  .then(r => {
-    if (!r.ok) throw new Error('GeoJSON load failed: '+r.statusText);
-    return r.json();
-  })
-  .then(data => {
-    deaDataCache = data;
-
-    // gather years
-    const yearSet = new Set();
-    deaDataCache.features.forEach(f=>{
-      (f.properties.data||[]).forEach(d=> yearSet.add(String(d.GroupedYear)));
-    });
-    years = Array.from(yearSet).sort();
-    if (years.length === 0){
-      showSpinner(false);
-      alert('No year data found in GeoJSON');
-      return;
-    }
-
-    document.getElementById('year-slider').max = years.length - 1;
-    updateYearLabel();
-
-    computeGlobalBounds();
-    if (yAxisMode === 'fixed') computeGlobalBreaks();
-    else computeBreaks();
-
-    createMapLayer();
-    updateLegend();
-
-    map.fitBounds(deaLayer.getBounds(), {padding:[18,18]});
-    showSpinner(false);
-  })
-  .catch(err=>{
-    console.error(err);
-    showSpinner(false);
-    alert('Error loading data: ' + (err.message || err));
-  });
-
-/* ===========================
-   HELPERS
-   =========================== */
-
-function round1(v){ return (typeof v==='number') ? Math.round(v*10)/10 : v; }
-function updateYearLabel(){ document.getElementById('year-label').textContent = years[currentYearIndex]; }
-
-function featureValueForYear(feature, yearIndex=currentYearIndex, sex=selectedSex){
-  const year = years[yearIndex];
-  const rec = (feature.properties.data||[]).find(d => d.Sex === sex && String(d.GroupedYear) === String(year));
-  return rec && typeof rec.Value === 'number' ? rec.Value : null;
-}
-
-/* NI average (simple mean) */
-function computeNIAverage(sex = selectedSex){
-  return years.map(y=>{
-    const vals = [];
-    deaDataCache.features.forEach(f=>{
-      const rec = (f.properties.data||[]).find(d=>d.Sex===sex && String(d.GroupedYear)===String(y));
-      if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
-    });
-    if (!vals.length) return null;
-    return round1(vals.reduce((a,b)=>a+b,0)/vals.length);
-  });
-}
-
-/* Global bounds */
-function computeGlobalBounds(){
-  let lo = Infinity, hi = -Infinity;
-  deaDataCache.features.forEach(f=>{
-    (f.properties.data||[]).forEach(d=>{
-      if (typeof d.Value === 'number'){
-        if (d.Value < lo) lo = d.Value;
-        if (d.Value > hi) hi = d.Value;
-      }
-    });
-  });
-  if (!isFinite(lo) || !isFinite(hi)){ globalMinValue = null; globalMaxValue = null; return; }
-  globalMinValue = Math.floor(lo - 1);
-  globalMaxValue = Math.ceil(hi + 1);
-}
-
-/* Break computations (5 classes -> 4 breakpoints) */
-function computeBreaks(){
-  const vals = [];
-  deaDataCache.features.forEach(f=>{
-    const rec = (f.properties.data||[]).find(d=>d.Sex===selectedSex && String(d.GroupedYear)===String(years[currentYearIndex]));
-    if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
-  });
-  if (!vals.length){ breaks = []; return; }
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const step = (max - min) / 5;
-  breaks = Array.from({length:4}, (_,i)=> round1(min + step*(i+1)));
-}
-function computeGlobalBreaks(){
-  const vals = [];
-  deaDataCache.features.forEach(f=>{
-    (f.properties.data||[]).forEach(d=>{
-      if (d.Sex === selectedSex && typeof d.Value === 'number') vals.push(d.Value);
-    });
-  });
-  if (!vals.length){ breaks = []; return; }
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const step = (max - min) / 5;
-  breaks = Array.from({length:4}, (_,i)=> round1(min + step*(i+1)));
-}
-
-/* Colour mapping */
-function getFeatureColor(feature){
-  const v = featureValueForYear(feature);
-  if (v == null || !breaks || breaks.length !== 4) return '#ccc';
-  if (v <= breaks[0]) return colors[0];
-  if (v <= breaks[1]) return colors[1];
-  if (v <= breaks[2]) return colors[2];
-  if (v <= breaks[3]) return colors[3];
-  return colors[4];
-}
-
-/* ===========================
-   MAP LAYER + EVENTS
-   =========================== */
-
-function createMapLayer(){
-  deaLayer = L.geoJSON(deaDataCache, {
-    style: feature => ({
-      weight:1,
-      color:'#555',
-      fillColor: getFeatureColor(feature),
-      fillOpacity: 0.8
-    }),
-    onEachFeature: (feature, layer) => {
-      // hover highlight
-      layer.on('mouseover', () => {
-        layer.bringToFront();
-        layer.setStyle({ weight: 3, color: '#000', fillOpacity:1 });
-      });
-      layer.on('mouseout', () => {
-        // do not reset selected style if it's the clicked one
-        if (lastSelectedLayer && lastSelectedLayer === layer) {
-          layer.setStyle({ weight:3, color:'#000', fillOpacity:1 });
-        } else {
-          deaLayer.resetStyle(layer);
-        }
-      });
-
-      // click: select DEA, open sidebar, add numeric label
-      layer.on('click', () => {
-        if (lastSelectedLayer && lastSelectedLayer !== layer) deaLayer.resetStyle(lastSelectedLayer);
-        lastSelectedLayer = layer;
-        layer.setStyle({ weight:3, color:'#000', fillOpacity:1 });
-
-        // show sidebar and label
-        populateSidebar(feature);
-        document.getElementById('sidebar').style.display = 'block';
-
-        addOrUpdateLabelForFeature(layer, feature);
-      });
-    }
-  }).addTo(map);
-}
-
-/* Add or update the numeric label (divIcon) at centroid for selected DEA */
-function addOrUpdateLabelForFeature(layer, feature){
-  // remove existing marker if present
-  if (selectedLabelMarker) {
-    map.removeLayer(selectedLabelMarker);
-    selectedLabelMarker = null;
-  }
-  // compute centroid from layer bounds
-  const center = layer.getBounds().getCenter();
-
-  // get value for selected year & sex
-  const val = featureValueForYear(feature);
-  const labelText = (val == null) ? 'n/a' : round1(val);
-
-  // create divIcon with halo/outline for readability
-  const html = `<div class="dea-label">${labelText}</div>`;
-  const icon = L.divIcon({
-    html: html,
-    className: 'dea-label-container',
-    iconSize: null
-  });
-
-  selectedLabelMarker = L.marker(center, { icon: icon, interactive: false }).addTo(map);
-}
-
-/* Remove numeric label */
-function removeLabel(){
-  if (selectedLabelMarker) {
-    map.removeLayer(selectedLabelMarker);
-    selectedLabelMarker = null;
-  }
-}
-
-/* Update label position/value when year/sex changes (if a DEA selected) */
-function refreshSelectedLabel(){
-  if (!lastSelectedLayer || !lastSelectedLayer.feature) return;
-  const feature = lastSelectedLayer.feature;
-  // update label text & reposition
-  if (selectedLabelMarker) map.removeLayer(selectedLabelMarker);
-  addOrUpdateLabelForFeature(lastSelectedLayer, feature);
-}
-
-/* ===========================
-   LEGEND
-   =========================== */
-
-function updateLegend(){
-  const title = document.getElementById('legend-title');
-  const body = document.getElementById('legend-body');
-  if (!title || !body) return;
-
-  let minDisplay, maxDisplay;
-  if (yAxisMode === 'fixed') {
-    minDisplay = (globalMinValue != null) ? globalMinValue : 'n/a';
-    maxDisplay = (globalMaxValue != null) ? globalMaxValue : 'n/a';
-  } else {
-    const vals = [];
-    deaDataCache.features.forEach(f=>{
-      const rec = (f.properties.data||[]).find(d=>d.Sex===selectedSex && String(d.GroupedYear)===String(years[currentYearIndex]));
-      if (rec && typeof rec.Value === 'number') vals.push(rec.Value);
-    });
-    minDisplay = vals.length ? round1(Math.min(...vals)) : 'n/a';
-    maxDisplay = vals.length ? round1(Math.max(...vals)) : 'n/a';
-  }
-
-  title.textContent = `${selectedSex} (${years[currentYearIndex]})`;
-
-  if (!breaks || breaks.length !== 4) {
-    body.innerHTML = `<small>Range: ${minDisplay} to ${maxDisplay} years</small><br><br><div>No break data</div>`;
-    return;
-  }
-
-  const labels = [
-    `${minDisplay} – ${breaks[0]}`,
-    `${breaks[0]} – ${breaks[1]}`,
-    `${breaks[1]} – ${breaks[2]}`,
-    `${breaks[2]} – ${breaks[3]}`,
-    `> ${breaks[3]}`
-  ];
-
-  let html = `<small>Range: ${minDisplay} to ${maxDisplay} years</small><br><br>`;
-  for (let i=0;i<5;i++){
-    html += `<div class="legend-item" style="opacity:1">
-               <div class="legend-swatch" style="background:${colors[i]}"></div>
-               <div>${labels[i]}</div>
-             </div>`;
-  }
-  body.innerHTML = html;
-}
-
-/* Legend toggle behavior: collapse on small screens, toggle button */
-document.addEventListener('click', (e)=>{
-  if (e.target && e.target.id === 'legend-toggle'){
-    const body = document.getElementById('legend-body');
-    if (!body) return;
-    if (body.style.display === 'none' || body.style.display === '') {
-      body.style.display = 'block';
-      e.target.textContent = '▾';
-    } else {
-      body.style.display = 'none';
-      e.target.textContent = '▸';
-    }
-  }
-});
-(function autoCollapseLegendOnSmall(){
-  const mq = window.matchMedia('(max-width:650px)');
-  function handler(m){
-    const btn = document.getElementById('legend-toggle');
-    const body = document.getElementById('legend-body');
-    if (!btn || !body) return;
-    if (m.matches) { body.style.display = 'none'; btn.textContent='▸'; document.querySelector('.legend')?.classList.add('collapsed'); }
-    else { body.style.display = 'block'; btn.textContent='▾'; document.querySelector('.legend')?.classList.remove('collapsed'); }
-  }
-  handler(mq);
-  mq.addListener(handler);
-})();
-
-/* ===========================
-   CHART BUILD
-   =========================== */
-
-function buildChart(feature){
-  const ctx = document.getElementById('deaChart').getContext('2d');
-
-  const deaRecords = years.map(y=>{
-    const rec = (feature.properties.data||[]).find(d=>d.Sex===selectedSex && String(d.GroupedYear)===String(y));
-    return rec && typeof rec.Value === 'number' ? round1(rec.Value) : null;
-  });
-
-  const niRecords = computeNIAverage(selectedSex);
-
-  let chartMin=null, chartMax=null;
-  if (yAxisMode === 'fixed' && globalMinValue != null && globalMaxValue != null){
-    chartMin = globalMinValue; chartMax = globalMaxValue;
-  } else {
-    const combined = [];
-    deaRecords.forEach(v => { if (typeof v === 'number') combined.push(v); });
-    niRecords.forEach(v => { if (typeof v === 'number') combined.push(v); });
-    if (combined.length) { chartMin = Math.floor(Math.min(...combined)-1); chartMax = Math.ceil(Math.max(...combined)+1); }
-  }
-
-  const selIdx = currentYearIndex;
-  if (deaChart) deaChart.destroy();
-
-  deaChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: years,
-      datasets: [
-        {
-          label: feature.properties.finalr_dea || 'DEA',
-          data: deaRecords,
-          borderColor: '#0078A8',
-          backgroundColor: 'rgba(0,120,168,0.16)',
-          fill: true,
-          pointRadius: 3,
-          tension: 0.25,
-          borderWidth: 2
-        },
-        {
-          label: 'Northern Ireland (avg)',
-          data: niRecords,
-          borderColor: '#444',
-          backgroundColor: 'transparent',
-          fill: false,
-          borderDash: [5,5],
-          pointRadius: 0,
-          tension: 0.25,
-          borderWidth: 2
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      scales: {
-        x: { title: { display: true, text: 'Period' } },
-        y: { title: { display: true, text: 'HLE (years)' }, min: chartMin, max: chartMax }
-      },
-      plugins: {
-        legend: { display: false },
-        annotation: {
-          annotations: {
-            shadeLeft: { type: 'box', xMin: 0, xMax: selIdx, backgroundColor: 'rgba(0,0,0,0.04)' },
-            currentYearLine: { type: 'line', xMin: selIdx, xMax: selIdx, borderColor: 'rgba(0,0,0,0.45)', borderDash: [4,4], borderWidth: 1 }
-          }
-        }
-      }
-    }
-  });
-
-}
-
+// Update NI line width dynamically
 function updateSidebarChartForSelectedYear(){
   if (!deaChart) return;
   const idx = currentYearIndex;
@@ -687,118 +240,27 @@ function updateSidebarChartForSelectedYear(){
     if (ann.shadeLeft) { ann.shadeLeft.xMax = idx; }
     deaChart.update();
   }
-// Adjust dashed line width to match chart width
-const chartCanvas = document.getElementById('deaChart');
-const niLine = document.getElementById('ni-average-line');
-if (chartCanvas && niLine) {
-  niLine.style.width = chartCanvas.offsetWidth + 'px';
-}
-}
 
-/* populate sidebar */
-function populateSidebar(feature){
-  const props = feature.properties || {};
-  const cur = featureValueForYear(feature);
-  document.getElementById('sidebar-title').textContent = `DEA – ${props.finalr_dea || 'Unknown'}`;
-  document.getElementById('sidebar-meta').innerHTML = `<strong>${selectedSex}</strong><br>Period: ${years[0]} → ${years[years.length-1]}<br>Current (${years[currentYearIndex]}): ${cur != null ? round1(cur) + ' yrs' : 'n/a'}`;
-  buildChart(feature);
-}
-
-/* ===========================
-   UI EVENTS
-   =========================== */
-
-/* Tabs */
-function updateTabsUI(){
-  document.getElementById('tab-males').classList.remove('active');
-  document.getElementById('tab-females').classList.remove('active');
-  if (selectedSex === 'Males') document.getElementById('tab-males').classList.add('active');
-  else document.getElementById('tab-females').classList.add('active');
-}
-document.getElementById('tab-males').onclick = () => {
-  selectedSex = 'Males'; updateTabsUI();
-  computeBreaks(); computeGlobalBreaks(); updateMapStyles(); refreshSelectedLabel();
-  if (lastSelectedLayer) populateSidebar(lastSelectedLayer.feature);
-};
-document.getElementById('tab-females').onclick = () => {
-  selectedSex = 'Females'; updateTabsUI();
-  computeBreaks(); computeGlobalBreaks(); updateMapStyles(); refreshSelectedLabel();
-  if (lastSelectedLayer) populateSidebar(lastSelectedLayer.feature);
-};
-
-/* Slider */
-document.getElementById('year-slider').addEventListener('input', e => {
-  currentYearIndex = Number(e.target.value);
-  updateYearLabel();
-  updateMapStyles();
-  updateSidebarChartForSelectedYear();
-  refreshSelectedLabel();
-});
-
-/* Play */
-document.getElementById('play-btn').addEventListener('click', () => {
-  if (playInterval) { clearInterval(playInterval); playInterval = null; document.getElementById('play-btn').textContent = '▶ Play Years'; return; }
-  document.getElementById('play-btn').textContent = '⏸ Pause';
-  playInterval = setInterval(() => {
-    currentYearIndex = (currentYearIndex + 1) % years.length;
-    document.getElementById('year-slider').value = currentYearIndex;
-    updateYearLabel();
-    updateMapStyles();
-    updateSidebarChartForSelectedYear();
-    refreshSelectedLabel();
-  }, 1400);
-});
-
-/* Data display radios */
-document.querySelectorAll('input[name="yaxis"]').forEach(r => {
-  r.addEventListener('change', e => {
-    yAxisMode = e.target.value;
-    if (yAxisMode === 'fixed') { computeGlobalBounds(); computeGlobalBreaks(); }
-    else computeBreaks();
-    updateMapStyles();
-    if (lastSelectedLayer) populateSidebar(lastSelectedLayer.feature);
-    refreshSelectedLabel();
-  });
-});
-
-/* Controls collapse */
-document.getElementById('controls-toggle').addEventListener('click', () => {
-  const c = document.getElementById('controls');
-  if (c.classList.contains('min')) { c.classList.remove('min'); document.getElementById('controls-toggle').textContent='▾'; }
-  else { c.classList.add('min'); document.getElementById('controls-toggle').textContent='▸'; }
-});
-
-/* Legend auto collapse handled earlier via media query listener */
-
-/* Close sidebar */
-document.getElementById('close-sidebar').addEventListener('click', () => {
-  document.getElementById('sidebar').style.display = 'none';
-  if (lastSelectedLayer) deaLayer.resetStyle(lastSelectedLayer);
-  lastSelectedLayer = null;
-  removeLabel();
-});
-
-/* Close sidebar on map click for small screens */
-map.on('click', () => {
-  if (window.innerWidth <= 650) {
-    document.getElementById('sidebar').style.display = 'none';
-    if (lastSelectedLayer) deaLayer.resetStyle(lastSelectedLayer);
-    lastSelectedLayer = null;
-    removeLabel();
+  const chartCanvas = document.getElementById('deaChart');
+  const niLine = document.querySelector('#ni-average-label .ni-average-line');
+  if (chartCanvas && niLine) {
+    niLine.style.width = chartCanvas.offsetWidth + 'px';
   }
-});
-
-/* Update map styles */
-function updateMapStyles(){
-  if (!deaLayer) return;
-  if (yAxisMode === 'fixed') computeGlobalBreaks(); else computeBreaks();
-  deaLayer.eachLayer(layer => { layer.setStyle({ fillColor: getFeatureColor(layer.feature) }); });
-  updateLegend();
 }
 
-/* Ensure legend initial state */
-updateTabsUI();
+// When initializing chart
+setTimeout(() => {
+  if (lastSelectedLayer) populateSidebar(lastSelectedLayer.feature);
+}, 50);
 
+// Resize chart on window resize
+window.addEventListener('resize', () => {
+  if (deaChart) deaChart.resize();
+  const chartCanvas = document.getElementById('deaChart');
+  const niLine = document.querySelector('#ni-average-label .ni-average-line');
+  if (chartCanvas && niLine) niLine.style.width = chartCanvas.offsetWidth + 'px';
+});
 </script>
+
 </body>
 </html>
