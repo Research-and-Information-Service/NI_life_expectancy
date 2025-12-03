@@ -190,13 +190,18 @@
   font-size: 12px;
   color: #444;
   font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 6px; /* space between text and line */
 }
 
 #ni-average-label .ni-average-line {
-  letter-spacing: 2px;       /* space out dashes */
-  color: #444;               /* match chart dashed line color */
-  font-weight: normal;       /* keep text weight separate from label */
+  flex-grow: 1;                     /* make line expand to fill space */
+  border-bottom: 2px dashed #444;   /* same as chart dashed line */
+  height: 0;
+  display: inline-block;
 }
+
 
 
   </style>
@@ -242,10 +247,12 @@
     <h3 id="sidebar-title"></h3>
     <div id="sidebar-meta"></div>
     <div id="chart-container">
-  <div id="ni-average-label" style="margin-bottom:4px; font-size:12px; color:#444; font-weight:bold;">
-  NI average: <span class="ni-average-line">- - - - -</span>
+  <div id="ni-average-label" style="margin-bottom:4px; font-size:12px; color:#444; font-weight:bold; display:flex; align-items:center; gap:6px;">
+  <span>NI average:</span>
+  <span class="ni-average-line"></span>
 </div>
 <canvas id="deaChart"></canvas>
+
 
 
 </div>
