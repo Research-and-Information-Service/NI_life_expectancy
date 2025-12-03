@@ -18,7 +18,7 @@
 
   <style>
     :root{
-      --control-width: 220px;
+      --control-width: 320px;
       --control-font: 13px;
       --sidebar-width: 360px;
       --chart-height: 220px;
@@ -162,37 +162,12 @@
     }
 
     @media (max-width:650px){
-  :root{ 
-    --control-width:200px; 
-    --sidebar-width:240px; 
-    --chart-height:150px; 
-    --control-font:12px; 
-    --legend-width:120px; 
-  }
-
-  .controls{ left:8px; top:8px; padding:6px; }
-  .controls.min{ transform:none; opacity:1; }
-  .legend{ display:none; } /* hide default legend on tiny screens to save space */
-  #assembly-logo{ width:86px; left:8px; bottom:8px; }
-
-  /* ----------------------------
-     MOBILE SIDEBAR FIX
-     ---------------------------- */
-  #sidebar {
-    top: 5px;
-    right: 5px;
-    width: 90%;           /* nearly full width */
-    max-height: 90vh;     /* fit most of the viewport height */
-    padding: 8px;
-    overflow: hidden;     /* prevent scrolling if unnecessary */
-  }
-
-  #chart-container {
-    height: 35vh;          /* set chart height relative to viewport */
-    min-height: 150px;     /* keep minimum height */
-  }
-}
-
+      :root{ --control-width:200px; --sidebar-width:240px; --chart-height:150px; --control-font:12px; --legend-width:120px; }
+      .controls{ left:8px; top:8px; padding:6px; }
+      .controls.min{ transform:none; opacity:1; }
+      .legend{ display:none; } /* hide default legend on tiny screens to save space */
+      #assembly-logo{ width:86px; left:8px; bottom:8px; }
+    }
   /* ===================
    NI Average dashed line for chart legend
    =================== */
@@ -211,17 +186,18 @@
   gap: 6px;
 }
 #ni-average-label {
+  margin-bottom: 4px;
   font-size: 12px;
   color: #444;
   font-weight: bold;
-  display: inline-flex; /* shrink-wrap to content */
+  display: flex;
   align-items: center;
   gap: 6px; /* space between text and line */
 }
 
 #ni-average-label .ni-average-line {
-  width: 100px; /* adjust length as needed */
-  height: 2px; 
+  flex-grow: 1;
+  height: 2px; /* thickness of the line */
   background: repeating-linear-gradient(to right, #444 0, #444 5px, transparent 5px, transparent 10px);
   display: inline-block;
 }
@@ -272,12 +248,11 @@
     <h3 id="sidebar-title"></h3>
     <div id="sidebar-meta"></div>
     <div id="chart-container">
-  <div id="ni-average-label">
+  <div id="ni-average-label" style="margin-bottom:4px; font-size:12px; color:#444; font-weight:bold; display:flex; align-items:center; gap:6px;">
   <span>NI average:</span>
   <span class="ni-average-line"></span>
 </div>
 <canvas id="deaChart"></canvas>
-
 
 
 
@@ -495,23 +470,13 @@ function createMapLayer(){
 
       // click: select DEA, open sidebar, add numeric label
       layer.on('click', () => {
-  // Reset previous selection
-  if (lastSelectedLayer && lastSelectedLayer !== layer) deaLayer.resetStyle(lastSelectedLayer);
-  lastSelectedLayer = layer;
-  layer.setStyle({ weight: 3, color: '#000', fillOpacity: 1 });
+        if (lastSelectedLayer && lastSelectedLayer !== layer) deaLayer.resetStyle(lastSelectedLayer);
+        lastSelectedLayer = layer;
+        layer.setStyle({ weight:3, color:'#000', fillOpacity:1 });
 
-  // Show sidebar and numeric label
-  const sidebar = document.getElementById('sidebar');
-  sidebar.style.display = 'block'; // ensure sidebar is visible before chart init
-
-  // Populate sidebar content and chart after a tiny delay
-  setTimeout(() => {
-    populateSidebar(layer.feature);
-  }, 10);
-
-  addOrUpdateLabelForFeature(layer, layer.feature);
-});
-
+        // show sidebar and label
+        populateSidebar(feature);
+        document.getElementById('sidebar').style.display = 'block';
 
         addOrUpdateLabelForFeature(layer, feature);
       });
@@ -833,11 +798,6 @@ function updateMapStyles(){
 
 /* Ensure legend initial state */
 updateTabsUI();
-
-// Ensure chart resizes on window resize (mobile orientation changes)
-window.addEventListener('resize', () => {
-  if (deaChart) deaChart.resize();
-});
 
 </script>
 </body>
