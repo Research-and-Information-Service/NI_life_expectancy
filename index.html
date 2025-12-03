@@ -474,9 +474,14 @@ function createMapLayer(){
         lastSelectedLayer = layer;
         layer.setStyle({ weight:3, color:'#000', fillOpacity:1 });
 
-        // show sidebar and label
-        populateSidebar(feature);
-        document.getElementById('sidebar').style.display = 'block';
+       // show sidebar and label (with fix for mobile rendering)
+const sidebar = document.getElementById('sidebar');
+sidebar.style.display = 'block';  // ensure sidebar is visible before chart init
+
+// populate sidebar content and chart after a tiny delay
+setTimeout(() => {
+  populateSidebar(feature);
+}, 10);
 
         addOrUpdateLabelForFeature(layer, feature);
       });
