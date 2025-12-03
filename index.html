@@ -185,6 +185,12 @@
   align-items: center;
   gap: 6px;
 }
+#ni-average-label {
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #444;          /* same color as dashed line */
+  font-weight: bold;
+}
 
   </style>
 </head>
@@ -229,11 +235,12 @@
     <h3 id="sidebar-title"></h3>
     <div id="sidebar-meta"></div>
     <div id="chart-container">
-  <canvas id="deaChart"></canvas>
-  <div id="chart-legend" style="margin-top:6px; font-size:12px; display:flex; align-items:center; gap:4px;">
-    <span id="ni-average-line"></span>
-    <span>NI average</span>
+  <div id="ni-average-label" style="margin-bottom:4px; font-size:12px; color:#444; font-weight:bold;">
+    NI average
   </div>
+  <canvas id="deaChart"></canvas>
+</div>
+
 </div>
 
   </div>
