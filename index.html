@@ -162,12 +162,37 @@
     }
 
     @media (max-width:650px){
-      :root{ --control-width:200px; --sidebar-width:240px; --chart-height:150px; --control-font:12px; --legend-width:120px; }
-      .controls{ left:8px; top:8px; padding:6px; }
-      .controls.min{ transform:none; opacity:1; }
-      .legend{ display:none; } /* hide default legend on tiny screens to save space */
-      #assembly-logo{ width:86px; left:8px; bottom:8px; }
-    }
+  :root{ 
+    --control-width:200px; 
+    --sidebar-width:240px; 
+    --chart-height:150px; 
+    --control-font:12px; 
+    --legend-width:120px; 
+  }
+
+  .controls{ left:8px; top:8px; padding:6px; }
+  .controls.min{ transform:none; opacity:1; }
+  .legend{ display:none; } /* hide default legend on tiny screens to save space */
+  #assembly-logo{ width:86px; left:8px; bottom:8px; }
+
+  /* ----------------------------
+     MOBILE SIDEBAR FIX
+     ---------------------------- */
+  #sidebar {
+    top: 5px;
+    right: 5px;
+    width: 90%;           /* nearly full width */
+    max-height: 90vh;     /* fit most of the viewport height */
+    padding: 8px;
+    overflow: hidden;     /* prevent scrolling if unnecessary */
+  }
+
+  #chart-container {
+    height: 35vh;          /* set chart height relative to viewport */
+    min-height: 150px;     /* keep minimum height */
+  }
+}
+
   /* ===================
    NI Average dashed line for chart legend
    =================== */
@@ -470,18 +495,23 @@ function createMapLayer(){
 
       // click: select DEA, open sidebar, add numeric label
       layer.on('click', () => {
-        if (lastSelectedLayer && lastSelectedLayer !== layer) deaLayer.resetStyle(lastSelectedLayer);
-        lastSelectedLayer = layer;
-        layer.setStyle({ weight:3, color:'#000', fillOpacity:1 });
+  // Reset previous selection
+  if (lastSelectedLayer && lastSelectedLayer !== layer) deaLayer.resetStyle(lastSelectedLayer);
+  lastSelectedLayer = layer;
+  layer.setStyle({ weight: 3, color: '#000', fillOpacity: 1 });
 
-       // show sidebar and label (with fix for mobile rendering)
-const sidebar = document.getElementById('sidebar');
-sidebar.style.display = 'block';  // ensure sidebar is visible before chart init
+  // Show sidebar and numeric label
+  const sidebar = document.getElementById('sidebar');
+  sidebar.style.display = 'block'; // ensure sidebar is visible before chart init
 
-// populate sidebar content and chart after a tiny delay
-setTimeout(() => {
-  populateSidebar(feature);
-}, 10);
+  // Populate sidebar content and chart after a tiny delay
+  setTimeout(() => {
+    populateSidebar(layer.feature);
+  }, 10);
+
+  addOrUpdateLabelForFeature(layer, layer.feature);
+});
+
 
         addOrUpdateLabelForFeature(layer, feature);
       });
@@ -803,6 +833,11 @@ function updateMapStyles(){
 
 /* Ensure legend initial state */
 updateTabsUI();
+
+// Ensure chart resizes on window resize (mobile orientation changes)
+window.addEventListener('resize', () => {
+  if (deaChart) deaChart.resize();
+});
 
 </script>
 </body>
