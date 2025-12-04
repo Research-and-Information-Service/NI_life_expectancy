@@ -810,12 +810,32 @@ map.on('click', () => {
 });
 
 /* Update map styles */
-function updateMapStyles(){
+function updateMapStyles() {
   if (!deaLayer) return;
-  if (yAxisMode === 'fixed') computeGlobalBreaks(); else computeBreaks();
-  deaLayer.eachLayer(layer => { layer.setStyle({ fillColor: getFeatureColor(layer.feature) }); });
+
+  if (yAxisMode === 'fixed') computeGlobalBreaks();
+  else computeBreaks();
+
+  // Update all DEA polygons
+  deaLayer.eachLayer(layer => {
+    layer.setStyle({
+      fillColor: getFeatureColor(layer.feature)
+    });
+  });
+
+  // Re-apply highlight & updated color to the selected DEA
+  if (lastSelectedLayer) {
+    lastSelectedLayer.setStyle({
+      fillColor: getFeatureColor(lastSelectedLayer.feature),
+      weight: 3,
+      color: '#000',
+      fillOpacity: 1
+    });
+  }
+
   updateLegend();
 }
+
 
 /* Ensure legend initial state */
 updateTabsUI();
