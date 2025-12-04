@@ -703,6 +703,23 @@ function populateSidebar(feature){
   document.getElementById('sidebar-meta').innerHTML = `<strong>${selectedSex}</strong><br>Period: ${years[0]} → ${years[years.length-1]}<br>Current (${years[currentYearIndex]}): ${cur != null ? round1(cur) + ' yrs' : 'n/a'}`;
   buildChart(feature);
 }
+/* ==========================================
+   Sidebar "Current" updater (NEW function)
+   ========================================== */
+function updateSidebarCurrentValue() {
+  if (!lastSelectedLayer) return;
+
+  const feature = lastSelectedLayer.feature;
+  const props = feature.properties || {};
+  const cur = featureValueForYear(feature);
+  const curText = cur != null ? round1(cur) + ' yrs' : 'n/a';
+
+  document.getElementById('sidebar-meta').innerHTML =
+    `<strong>${selectedSex}</strong><br>
+     Period: ${years[0]} → ${years[years.length-1]}<br>
+     Current (${years[currentYearIndex]}): ${curText}`;
+}
+
 
 /* ===========================
    UI EVENTS
@@ -733,20 +750,24 @@ document.getElementById('year-slider').addEventListener('input', e => {
   updateMapStyles();
   updateSidebarChartForSelectedYear();
   refreshSelectedLabel();
+  updateSidebarCurrentValue();   // ← ADD THIS
 });
+
 
 /* Play */
 document.getElementById('play-btn').addEventListener('click', () => {
   if (playInterval) { clearInterval(playInterval); playInterval = null; document.getElementById('play-btn').textContent = '▶ Play Years'; return; }
   document.getElementById('play-btn').textContent = '⏸ Pause';
   playInterval = setInterval(() => {
-    currentYearIndex = (currentYearIndex + 1) % years.length;
-    document.getElementById('year-slider').value = currentYearIndex;
-    updateYearLabel();
-    updateMapStyles();
-    updateSidebarChartForSelectedYear();
-    refreshSelectedLabel();
-  }, 1400);
+  currentYearIndex = (currentYearIndex + 1) % years.length;
+  document.getElementById('year-slider').value = currentYearIndex;
+  updateYearLabel();
+  updateMapStyles();
+  updateSidebarChartForSelectedYear();
+  refreshSelectedLabel();
+  updateSidebarCurrentValue();   // ← ADD THIS
+}, 1400);
+
 });
 
 /* Data display radios */
