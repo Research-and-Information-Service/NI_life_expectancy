@@ -339,11 +339,25 @@ fetch(geojsonUrl)
     computeGlobalBounds();
 computeGlobalBreaks();
 
-    createMapLayer();
-    updateLegend();
 
-    map.fitBounds(deaLayer.getBounds(), {padding:[18,18]});
-    showSpinner(false);
+createMapLayer();
+updateLegend();
+
+const deaBounds = deaLayer.getBounds();
+map.fitBounds(deaBounds, { padding: [18, 18] });
+
+// ✅ Restrict pan/drag to DEA bounds (with a little padding)
+map.setMaxBounds(deaBounds.pad(0.05));
+
+// ✅ Prevent zooming out beyond the DEA extent
+map.options.minZoom = map.getBoundsZoom(deaBounds, true);
+map.setMinZoom(map.options.minZoom);
+
+// Optional: also restrict how far in users can zoom (pick a number you like)
+map.setMaxZoom(14);
+
+showSpinner(false);
+
   })
   .catch(err=>{
     console.error(err);
