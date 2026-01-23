@@ -3,32 +3,56 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NI DEA Life Expectancy Map</title>
+<title>NI DEA Life Expectancy</title>
 
 <!-- Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Chart.js + Annotation plugin (WORKING) -->
+<!-- Chart.js + Annotation -->
 <script src="https://unpkg.com/chart.js@4.3.0/dist/chart.umd.js"></script>
-<script src="https://unpkg.com/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="https://unpkg.com/chartjs-plugin-annotation@3.0.1"></script>
 <script>
-  Chart.register(window.ChartAnnotation);
+  Chart.register(window.chartjsPluginAnnotation);
 </script>
 
 <style>
-html,body{margin:0;height:100%;font-family:Arial,sans-serif}
-#map{height:100vh;width:100%}
-.controls{position:absolute;top:10px;left:10px;z-index:1200;background:#fff;padding:8px;border-radius:6px;width:220px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
-.tabs button{width:50%;padding:6px;border:none;border-radius:4px;background:#eee}
-.tabs button.active{background:#0078A8;color:#fff}
-#year-slider{width:100%;margin-top:8px}
-#sidebar{position:absolute;right:10px;top:10px;width:360px;max-height:calc(100vh - 20px);overflow:auto;background:#fff;padding:10px;border-radius:6px;display:none;z-index:1200}
-#chart-container{height:220px}
-.legend{background:#fff;padding:6px;border-radius:6px;font-size:12px}
-.leaflet-interactive{transition:fill .3s ease}
-@media (max-width:650px){
-  #sidebar{width:240px}
+body { margin:0; font-family:Arial,sans-serif; }
+#map { height:100vh; }
+
+.controls {
+  position:absolute; top:10px; left:10px;
+  z-index:1000; background:#fff;
+  padding:10px; border-radius:6px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.3);
+  width:300px;
+}
+
+.tabs button {
+  margin:2px; padding:6px 10px;
+  border:none; border-radius:4px;
+  cursor:pointer; background:#eee;
+}
+.tabs button.active { background:#0078A8; color:#fff; }
+
+#sidebar {
+  position:absolute; right:10px; top:10px;
+  width:360px; z-index:1000;
+  background:#fff; padding:12px;
+  border-radius:6px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.3);
+  display:none;
+}
+#chart-container { height:220px; }
+
+.legend {
+  background:#fff; padding:8px;
+  border-radius:4px; font-size:12px;
+}
+.legend i {
+  width:18px; height:18px;
+  display:inline-block;
+  margin-right:6px;
 }
 </style>
 </head>
@@ -43,9 +67,8 @@ html,body{margin:0;height:100%;font-family:Arial,sans-serif}
     <button id="tab-females">Females</button>
   </div>
 
-  <input type="range" id="year-slider" min="0" max="0" step="1">
+  <input type="range" id="year-slider" min="0" step="1" value="0" style="width:100%">
   <div id="year-label"></div>
-
   <button id="play-btn">▶ Play Years</button>
 </div>
 
@@ -57,175 +80,122 @@ html,body{margin:0;height:100%;font-family:Arial,sans-serif}
 </div>
 
 <script>
-/* ======================
-   STATE
-====================== */
 const geojsonUrl = 'DEA_data.geojson';
-const colors = ["#28326f","#25588e","#2285b3","#86bad4","#dee8f1"];
-let selectedSex = "Males";
-let years = [];
-let currentYearIndex = 0;
-let deaDataCache = null;
-let deaLayer = null;
-let lastSelectedLayer = null;
-let deaChart = null;
-let playInterval = null;
-let breaks = [];
-let globalMin = null, globalMax = null;
-const isTouch = window.matchMedia('(hover:none)').matches;
+const colors = ['#f7fcf0','#ccebc5','#a8ddb5','#7bccc4','#4eb3d3','#2b8cbe','#08589e'];
 
-/* ======================
-   MAP
-====================== */
-const map = L.map('map',{preferCanvas:true}).setView([54.7,-6.6],8);
+let years=[], currentYearIndex=0, selectedSex='Males';
+let deaLayer, deaChart, deaData;
+let hoveredFeature=null, playInterval=null;
+
+/* MAP */
+const map = L.map('map',{minZoom:7,maxZoom:10}).setView([54.7,-6.6],8);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png').addTo(map);
 
-/* ======================
-   HELPERS
-====================== */
-const round1 = v => Math.round(v*10)/10;
+/* LEGEND */
+const legend = L.control({position:'bottomright'});
+legend.onAdd = () => {
+  const div=L.DomUtil.create('div','legend');
+  div.id='legend-content';
+  return div;
+};
+legend.addTo(map);
 
-function featureValue(feature){
-  const y = years[currentYearIndex];
-  const r = (feature.properties.data||[])
-    .find(d=>d.Sex===selectedSex && String(d.GroupedYear)===String(y));
-  return r?.Value ?? null;
-}
-
-/* ======================
-   GLOBAL BREAKS (ACROSS YEARS ONLY)
-====================== */
-function computeGlobalBounds(){
-  let lo=Infinity, hi=-Infinity;
-  deaDataCache.features.forEach(f=>{
-    (f.properties.data||[]).forEach(d=>{
-      if(d.Sex===selectedSex && typeof d.Value==='number'){
-        lo=Math.min(lo,d.Value);
-        hi=Math.max(hi,d.Value);
-      }
-    });
-  });
-  globalMin=Math.floor(lo-1);
-  globalMax=Math.ceil(hi+1);
-}
-
-function computeGlobalBreaks(){
-  const vals=[];
-  deaDataCache.features.forEach(f=>{
-    (f.properties.data||[]).forEach(d=>{
-      if(d.Sex===selectedSex && typeof d.Value==='number') vals.push(d.Value);
-    });
-  });
-  const min=Math.min(...vals), max=Math.max(...vals);
-  const step=(max-min)/5;
-  breaks=[1,2,3,4].map(i=>round1(min+step*i));
-}
-
-/* ======================
-   COLOR
-====================== */
-function getColor(feature){
-  const v=featureValue(feature);
-  if(v==null) return '#ccc';
-  if(v<=breaks[0]) return colors[0];
-  if(v<=breaks[1]) return colors[1];
-  if(v<=breaks[2]) return colors[2];
-  if(v<=breaks[3]) return colors[3];
-  return colors[4];
-}
-
-/* ======================
-   LOAD DATA
-====================== */
+/* LOAD DATA */
 fetch(geojsonUrl).then(r=>r.json()).then(data=>{
-  deaDataCache=data;
+  deaData=data;
 
-  const ys=new Set();
-  data.features.forEach(f=>
-    (f.properties.data||[]).forEach(d=>ys.add(String(d.GroupedYear)))
-  );
-  years=[...ys].sort();
+  const yearSet=new Set();
+  data.features.forEach(f=>f.properties.data.forEach(d=>yearSet.add(d.GroupedYear)));
+  years=[...yearSet].sort();
   document.getElementById('year-slider').max=years.length-1;
   updateYearLabel();
 
-  computeGlobalBounds();
-  computeGlobalBreaks();
-  createLayer();
-});
-
-/* ======================
-   LAYER
-====================== */
-function createLayer(){
-  deaLayer = L.geoJSON(deaDataCache,{
-    style: f => ({
-      fillColor: getColor(f),
-      color:'#555',
-      weight:1,
-      fillOpacity:.8
-    }),
+  deaLayer=L.geoJSON(data,{
+    style:f=>({weight:1,color:'#555',fillOpacity:0.85,fillColor:getColor(f)}),
     onEachFeature:(f,l)=>{
-      if(!isTouch){
-        l.on('mouseover',()=>l.setStyle({weight:3,color:'#000'}));
-        l.on('mouseout',()=>deaLayer.resetStyle(l));
-      }
-      l.on('click',()=>{
-        lastSelectedLayer = l;
-        populateSidebar(f);
-        document.getElementById('sidebar').style.display='block';
+      l.on('mouseover',()=>{
+        hoveredFeature=f;
+        l.setStyle({weight:3,color:'#000'});
+        showSidebar(f);
+        updateLegendForDEA(f);
+      });
+      l.on('mouseout',()=>{
+        hoveredFeature=null;
+        deaLayer.resetStyle(l);
+        resetLegend();
       });
     }
   }).addTo(map);
-  const bounds = deaLayer.getBounds();
-  map.fitBounds(bounds, { padding:[20,20] });
 
-  map.setMaxBounds(bounds.pad(0.05)); // small buffer feels nicer
-  map.setMinZoom(map.getZoom());      // prevent zooming out further
+  map.fitBounds(deaLayer.getBounds(),{padding:[20,20]});
+  updateLegend();
+});
+
+/* HELPERS */
+function round1(v){return Math.round(v*10)/10;}
+
+function featureValue(f){
+  const r=f.properties.data.find(d=>d.Sex===selectedSex && d.GroupedYear===years[currentYearIndex]);
+  return r ? r.Value : null;
 }
 
-/* ======================
-   MAP UPDATE (OPTIMISED)
-====================== */
-function updateMapStyles(){
-  deaLayer.eachLayer(l=>{
-    const c=getColor(l.feature);
-    if(l.options.fillColor!==c) l.setStyle({fillColor:c});
-  });
+function getColor(f){
+  const v=featureValue(f);
+  if(v==null) return '#ccc';
+  if(v>80) return colors[6];
+  if(v>78) return colors[5];
+  if(v>76) return colors[4];
+  if(v>74) return colors[3];
+  return colors[1];
 }
 
-/* ======================
-   SIDEBAR + CHART
-====================== */
-function buildChart(feature){
-  const ctx=document.getElementById('deaChart');
+/* LEGEND SYNC */
+function updateLegend(){
+  document.getElementById('legend-content').innerHTML=
+    `<b>${selectedSex} – ${years[currentYearIndex]}</b><br>
+     <i style="background:${colors[3]}"></i> 74–76<br>
+     <i style="background:${colors[4]}"></i> 76–78<br>
+     <i style="background:${colors[5]}"></i> 78–80<br>
+     <i style="background:${colors[6]}"></i> 80+`;
+}
+
+function updateLegendForDEA(f){
+  const v=featureValue(f);
+  document.getElementById('legend-content').innerHTML=
+    `<b>${f.properties.finalr_dea}</b><br>
+     ${selectedSex} – ${years[currentYearIndex]}<br><br>
+     <b>Value:</b> ${round1(v)} yrs`;
+}
+
+function resetLegend(){ updateLegend(); }
+
+/* SIDEBAR + CHART */
+function showSidebar(f){
+  document.getElementById('sidebar').style.display='block';
+  document.getElementById('sidebar-title').textContent=f.properties.finalr_dea;
+  document.getElementById('sidebar-meta').innerHTML=
+    `${selectedSex}<br>Year: ${years[currentYearIndex]}`;
+
+  const ts=f.properties.data.filter(d=>d.Sex===selectedSex)
+    .sort((a,b)=>a.GroupedYear.localeCompare(b.GroupedYear));
+
+  const labels=ts.map(d=>d.GroupedYear);
+  const values=ts.map(d=>round1(d.Value));
+  const selIndex=labels.indexOf(years[currentYearIndex]);
+
   if(deaChart) deaChart.destroy();
-
-  const deaVals=years.map(y=>{
-    const r=(feature.properties.data||[])
-      .find(d=>d.Sex===selectedSex && String(d.GroupedYear)===String(y));
-    return r?.Value ?? null;
-  });
-
-  const selectedYear=years[currentYearIndex];
-
-  deaChart=new Chart(ctx,{
+  deaChart=new Chart(document.getElementById('deaChart'),{
     type:'line',
-    data:{labels:years,datasets:[{
-      label:feature.properties.finalr_dea,
-      data:deaVals,
-      borderColor:'#0078A8',
-      fill:true,
-      tension:.25
+    data:{labels,datasets:[{
+      data:values,borderColor:'#0078A8',
+      tension:0.3,pointRadius:3
     }]},
     options:{
       animation:false,
-      maintainAspectRatio:false,
-      scales:{y:{min:globalMin,max:globalMax}},
       plugins:{
         annotation:{
           annotations:{
-            shade:{type:'box',xMin:years[0],xMax:selectedYear,backgroundColor:'rgba(0,0,0,.05)'},
-            line:{type:'line',xMin:selectedYear,xMax:selectedYear,borderDash:[4,4]}
+            line:{type:'line',xMin:selIndex,xMax:selIndex,borderDash:[4,4]}
           }
         }
       }
@@ -233,60 +203,42 @@ function buildChart(feature){
   });
 }
 
-function populateSidebar(feature){
-  document.getElementById('sidebar-title').textContent=`DEA – ${feature.properties.finalr_dea}`;
-  document.getElementById('sidebar-meta').textContent=
-    `${selectedSex}, ${years[currentYearIndex]}`;
-  buildChart(feature);
+/* SLIDER + PLAY */
+function updateAll(){
+  updateYearLabel();
+  deaLayer.eachLayer(l=>{
+    l.setStyle({fillColor:getColor(l.feature)});
+  });
+  if(hoveredFeature){
+    showSidebar(hoveredFeature);
+    updateLegendForDEA(hoveredFeature);
+  } else {
+    updateLegend();
+  }
 }
 
-/* ======================
-   UI
-====================== */
+document.getElementById('year-slider').oninput=e=>{
+  currentYearIndex=+e.target.value;
+  updateAll();
+};
+
+document.getElementById('play-btn').onclick=()=>{
+  if(playInterval){
+    clearInterval(playInterval); playInterval=null;
+    document.getElementById('play-btn').textContent='▶ Play Years';
+  } else {
+    document.getElementById('play-btn').textContent='⏸ Pause';
+    playInterval=setInterval(()=>{
+      currentYearIndex=(currentYearIndex+1)%years.length;
+      document.getElementById('year-slider').value=currentYearIndex;
+      updateAll();
+    },1200);
+  }
+};
+
 function updateYearLabel(){
   document.getElementById('year-label').textContent=years[currentYearIndex];
 }
-
-function throttle(fn,delay){
-  let t=0;
-  return v=>{
-    const n=Date.now();
-    if(n-t>delay){t=n;fn(v);}
-  };
-}
-
-const onYearChange=throttle(i=>{
-  currentYearIndex=i;
-  updateYearLabel();
-  updateMapStyles();
-  if(deaChart) updateChartAnnotations();
-},120);
-
-document.getElementById('year-slider').addEventListener('input',e=>{
-  onYearChange(Number(e.target.value));
-});
-
-function updateChartAnnotations(){
-  const y=years[currentYearIndex];
-  const a=deaChart.options.plugins.annotation.annotations;
-  a.line.xMin=a.line.xMax=y;
-  a.shade.xMax=y;
-  deaChart.update();
-}
-
-document.getElementById('play-btn').onclick=()=>{
-  if(playInterval){clearInterval(playInterval);playInterval=null;return;}
-  playInterval=setInterval(()=>{
-    currentYearIndex=(currentYearIndex+1)%years.length;
-    document.getElementById('year-slider').value=currentYearIndex;
-    onYearChange(currentYearIndex);
-  },window.innerWidth<650?1800:1200);
-};
-
-document.getElementById('tab-males').onclick=()=>{selectedSex='Males';computeGlobalBounds();computeGlobalBreaks();updateMapStyles();};
-document.getElementById('tab-females').onclick=()=>{selectedSex='Females';computeGlobalBounds();computeGlobalBreaks();updateMapStyles();};
-
-document.getElementById('close-sidebar').onclick=()=>document.getElementById('sidebar').style.display='none';
 </script>
 
 </body>
