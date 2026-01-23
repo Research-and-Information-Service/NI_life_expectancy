@@ -278,14 +278,55 @@ let breaks = []; // 4 breakpoints for 5 classes
 let globalMinValue = null;
 let globalMaxValue = null;
 
+
 /* ===========================
-   MAP INIT
+   MAP INIT (DEA START + NI LOCK)
    =========================== */
 
-const map = L.map('map', {preferCanvas:true}).setView([54.7,-6.6],8);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{
+// Tight NI bounds including Rathlin Island + Strangford Lough + Carlingford Lough
+const NI_BOUNDS = L.latLngBounds(
+  [54.00, -7.85], // SW
+  [55.36, -5.47]  // NE
+);
+
+let niMinZoom = null;
+
+// Slight elastic on TOUCH drag; firmer on desktop
+const boundsViscosity = (L.Browser && L.Browser.touch) ? 0.90 : 1.0;
+
+const map = L.map('map', {
+  preferCanvas: true,
+  maxBoundsViscosity: boundsViscosity
+}).setView([54.7, -6.6], 8); // temporary view; DEA fit happens after data loads
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap & Carto'
 }).addTo(map);
+
+// Apply NI lock (pan + zoom-out clamp)
+function applyNILock() {
+  // Lock panning to NI
+  map.setMaxBounds(NI_BOUNDS);
+
+  // Lock zoom-out so the furthest extent is "NI just fits"
+  niMinZoom = map.getBoundsZoom(NI_BOUNDS, true);
+  map.setMinZoom(niMinZoom);
+
+  // Keep view inside bounds after gestures/resizes
+  map.panInsideBounds(NI_BOUNDS, { animate: false });
+}
+
+// Apply once at startup (so constraints exist immediately)
+applyNILock();
+
+// Optional: cap zoom-in (adjust as you like)
+map.setMaxZoom(14);
+
+// Keep the zoom-out clamp correct after resize/orientation changes
+window.addEventListener('resize', () => {
+  setTimeout(() => applyNILock(), 150);
+});
+
 
 /* Legend control */
 const legendControl = L.control({position:'bottomright'});
@@ -343,18 +384,15 @@ computeGlobalBreaks();
 createMapLayer();
 updateLegend();
 
+
+// Start view focused on DEA data (your preference: B)
 const deaBounds = deaLayer.getBounds();
 map.fitBounds(deaBounds, { padding: [18, 18] });
 
-// ✅ Restrict pan/drag to DEA bounds (with a little padding)
-map.setMaxBounds(deaBounds.pad(0.05));
+// Keep NI lock in place: pan stays within NI,
+// pinch-zoom out stops when NI just fits the screen.
+applyNILock();
 
-// ✅ Prevent zooming out beyond the DEA extent
-map.options.minZoom = map.getBoundsZoom(deaBounds, true);
-map.setMinZoom(map.options.minZoom);
-
-// Optional: also restrict how far in users can zoom (pick a number you like)
-map.setMaxZoom(14);
 
 showSpinner(false);
 
