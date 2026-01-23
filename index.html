@@ -157,21 +157,30 @@ fetch(geojsonUrl).then(r=>r.json()).then(data=>{
    LAYER
 ====================== */
 function createLayer(){
-  deaLayer=L.geoJSON(deaDataCache,{
-    style:f=>({fillColor:getColor(f),color:'#555',weight:1,fillOpacity:.8}),
+  deaLayer = L.geoJSON(deaDataCache,{
+    style: f => ({
+      fillColor: getColor(f),
+      color:'#555',
+      weight:1,
+      fillOpacity:.8
+    }),
     onEachFeature:(f,l)=>{
       if(!isTouch){
         l.on('mouseover',()=>l.setStyle({weight:3,color:'#000'}));
         l.on('mouseout',()=>deaLayer.resetStyle(l));
       }
       l.on('click',()=>{
-        lastSelectedLayer=l;
+        lastSelectedLayer = l;
         populateSidebar(f);
         document.getElementById('sidebar').style.display='block';
       });
     }
   }).addTo(map);
-  map.fitBounds(deaLayer.getBounds());
+  const bounds = deaLayer.getBounds();
+  map.fitBounds(bounds, { padding:[20,20] });
+
+  map.setMaxBounds(bounds.pad(0.05)); // small buffer feels nicer
+  map.setMinZoom(map.getZoom());      // prevent zooming out further
 }
 
 /* ======================
