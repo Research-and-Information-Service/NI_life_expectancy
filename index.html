@@ -11,138 +11,177 @@
 
 <!-- Chart.js -->
 <script src="https://unpkg.com/chart.js@4.3.0/dist/chart.umd.js"></script>
-
-<!-- Chart.js Annotation Plugin -->
 <script src="https://unpkg.com/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <script>Chart.register(window['chartjs-plugin-annotation']);</script>
 
 <style>
-/* Your existing CSS here (unchanged) */
-html,body { height:100%; margin:0; font-family: Arial, sans-serif; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;}
-#map { height:100vh; width:100%; }
-/* ...rest of your CSS omitted for brevity */
+  html,body {height:100%; margin:0; font-family:Arial,sans-serif;}
+  #map {height:100vh; width:100%;}
+  .controls {position:absolute; top:10px; left:10px; z-index:1200; background:rgba(255,255,255,0.98); padding:8px; border-radius:6px;}
+  #sidebar {position:absolute; right:10px; top:10px; z-index:1200; width:360px; max-height:calc(100vh-20px); overflow:auto; background:rgba(255,255,255,0.98); padding:10px; border-radius:6px; display:none;}
 </style>
 </head>
 <body>
-<div id="map"></div>
-<img id="assembly-logo" src="NI_Assembly.svg" alt="NI Assembly Logo" />
-<div id="spinner"><div class="spinner-dot"></div><div class="spinner-dot" style="animation-delay:.12s"></div><div class="spinner-dot" style="animation-delay:.24s"></div></div>
 
-<!-- Controls & Sidebar HTML here (unchanged) -->
+<div id="map"></div>
+
+<div class="controls" id="controls">
+  <div class="tabs">
+    <button id="tab-males" class="active">Males</button>
+    <button id="tab-females">Females</button>
+  </div>
+  <input type="range" id="year-slider" min="0" max="0" step="1" />
+  <div id="year-label"></div>
+  <button id="play-btn">▶ Play Years</button>
+</div>
+
+<div id="sidebar">
+  <button id="close-sidebar" style="float:right">Close</button>
+  <h3 id="sidebar-title"></h3>
+  <div id="sidebar-meta"></div>
+  <canvas id="deaChart" style="height:220px;"></canvas>
+</div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function(){
+
 /* ===========================
    CONFIG & STATE
 =========================== */
+
 const colors = ["#28326f","#25588e","#2285b3","#86bad4","#dee8f1"];
 const geojsonUrl = "DEA_data.geojson";
-let selectedSex = "Males", years = [], currentYearIndex = 0;
-let deaDataCache = null, deaLayer = null, lastSelectedLayer = null, selectedLabelMarker = null;
-let deaChart = null, playInterval = null;
-let breaks = [], globalMinValue = null, globalMaxValue = null;
+
+let selectedSex = "Males";
+let years = [];
+let currentYearIndex = 0;
+let deaDataCache = null;
+let deaLayer = null;
+let lastSelectedLayer = null;
+let selectedLabelMarker = null;
+let deaChart = null;
+let playInterval = null;
+let breaks = [];
+let globalMinValue = null;
+let globalMaxValue = null;
+let initialBounds = null; // store DEA bounds to lock zoom out
 
 /* ===========================
    MAP INIT
 =========================== */
-const map = L.map('map', { preferCanvas: true }).setView([54.7, -6.6], 8);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap & Carto' }).addTo(map);
 
-/* ===========================
-   GEOJSON LOAD
-=========================== */
-showSpinner(true);
-fetch(geojsonUrl)
-  .then(r => { if(!r.ok) throw new Error('GeoJSON load failed: '+r.statusText); return r.json(); })
-  .then(data => {
-    deaDataCache = data;
+const map = L.map('map', {preferCanvas:true}).setView([54.7,-6.6],8);
 
-    // Gather all years
-    const yearSet = new Set();
-    deaDataCache.features.forEach(f=> (f.properties.data||[]).forEach(d=> yearSet.add(String(d.GroupedYear))));
-    years = Array.from(yearSet).sort();
-    if(!years.length){ showSpinner(false); alert('No year data found'); return; }
-    document.getElementById('year-slider').max = years.length - 1;
-    updateYearLabel();
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',{
+  attribution:'&copy; OpenStreetMap & Carto'
+}).addTo(map);
 
-    computeGlobalBounds();
-    computeGlobalBreaks();
-
-    createMapLayer();
-    updateLegend();
-
-    // -------------------------------
-    // Fit map to DEA layer and restrict zoom/pan
-    // -------------------------------
-    const deaBounds = deaLayer.getBounds();
-    map.fitBounds(deaBounds, { padding: [20, 20] });
-    map.setMaxBounds(deaBounds.pad(0.1)); // restrict panning outside DEA
-    map.setMinZoom(map.getBoundsZoom(deaBounds)); // restrict zoom out
-    map.setMaxZoom(14); // optional zoom-in cap
-
-    showSpinner(false);
-  })
-  .catch(err => { console.error(err); showSpinner(false); alert('Error loading data: ' + (err.message || err)); });
+map.setMaxZoom(14);
 
 /* ===========================
    HELPER FUNCTIONS
 =========================== */
-function showSpinner(on=true){ document.getElementById('spinner').style.display = on ? 'block' : 'none'; }
-function round1(v){ return (typeof v==='number') ? Math.round(v*10)/10 : v; }
+
+function showSpinner(on=true){ console.log('spinner',on); }
+function round1(v){ return (typeof v==='number')?Math.round(v*10)/10:v; }
 function updateYearLabel(){ document.getElementById('year-label').textContent = years[currentYearIndex]; }
 function featureValueForYear(feature, yearIndex=currentYearIndex, sex=selectedSex){
   const year = years[yearIndex];
-  const rec = (feature.properties.data||[]).find(d => d.Sex===sex && String(d.GroupedYear) === String(year));
-  return rec && typeof rec.Value === 'number' ? rec.Value : null;
-}
-function computeGlobalBounds(){
-  let lo=Infinity, hi=-Infinity;
-  deaDataCache.features.forEach(f=> (f.properties.data||[]).forEach(d=> { if(typeof d.Value==='number'){ if(d.Value<lo) lo=d.Value; if(d.Value>hi) hi=d.Value; } }));
-  if(!isFinite(lo)||!isFinite(hi)){ globalMinValue=null; globalMaxValue=null; return; }
-  globalMinValue=Math.floor(lo-1); globalMaxValue=Math.ceil(hi+1);
-}
-function computeBreaks(){
-  const vals=[];
-  deaDataCache.features.forEach(f=> { const rec=(f.properties.data||[]).find(d=>d.Sex===selectedSex && String(d.GroupedYear)===String(years[currentYearIndex])); if(rec&&typeof rec.Value==='number') vals.push(rec.Value); });
-  if(!vals.length){ breaks=[]; return; }
-  const min=Math.min(...vals), max=Math.max(...vals);
-  const step=(max-min)/5; breaks=Array.from({length:4},(_,i)=>round1(min+step*(i+1)));
-}
-function computeGlobalBreaks(){
-  const vals=[];
-  deaDataCache.features.forEach(f=> (f.properties.data||[]).forEach(d=> { if(d.Sex===selectedSex&&typeof d.Value==='number') vals.push(d.Value); }));
-  if(!vals.length){ breaks=[]; return; }
-  const min=Math.min(...vals), max=Math.max(...vals);
-  const step=(max-min)/5; breaks=Array.from({length:4},(_,i)=>round1(min+step*(i+1)));
-}
-function getFeatureColor(feature){
-  const v=featureValueForYear(feature);
-  if(v==null||!breaks||breaks.length!==4) return '#ccc';
-  if(v<=breaks[0]) return colors[0];
-  if(v<=breaks[1]) return colors[1];
-  if(v<=breaks[2]) return colors[2];
-  if(v<=breaks[3]) return colors[3];
-  return colors[4];
+  const rec = (feature.properties.data||[]).find(d=>d.Sex===sex && String(d.GroupedYear)===String(year));
+  return rec && typeof rec.Value==='number'?rec.Value:null;
 }
 
 /* ===========================
-   MAP LAYER CREATION
+   LOAD GEOJSON
 =========================== */
-function createMapLayer(){
-  deaLayer = L.geoJSON(deaDataCache, {
-    style: f=>({weight:1,color:'#555',fillColor:getFeatureColor(f),fillOpacity:0.8}),
-    onEachFeature:(f,layer)=>{
-      layer.on('mouseover',()=>{ layer.bringToFront(); layer.setStyle({weight:3,color:'#000',fillOpacity:1}); });
-      layer.on('mouseout',()=>{ if(lastSelectedLayer&&lastSelectedLayer===layer){ layer.setStyle({weight:3,color:'#000',fillOpacity:1}); } else { deaLayer.resetStyle(layer); } });
-      layer.on('click',()=>{ if(lastSelectedLayer&&lastSelectedLayer!==layer) deaLayer.resetStyle(lastSelectedLayer); lastSelectedLayer=layer; layer.setStyle({weight:3,color:'#000',fillOpacity:1}); populateSidebar(f); document.getElementById('sidebar').style.display='block'; addOrUpdateLabelForFeature(layer,f); });
-    }
-  }).addTo(map);
+
+fetch(geojsonUrl)
+  .then(r=>r.json())
+  .then(data=>{
+    deaDataCache = data;
+
+    // collect years
+    const yearSet = new Set();
+    deaDataCache.features.forEach(f=> (f.properties.data||[]).forEach(d=> yearSet.add(String(d.GroupedYear))));
+    years = Array.from(yearSet).sort();
+    document.getElementById('year-slider').max = years.length-1;
+    updateYearLabel();
+
+    // compute global min/max
+    let vals=[];
+    deaDataCache.features.forEach(f=> (f.properties.data||[]).forEach(d=>{ if(typeof d.Value==='number') vals.push(d.Value); }));
+    if(vals.length){ globalMinValue = Math.floor(Math.min(...vals)-1); globalMaxValue = Math.ceil(Math.max(...vals)+1); }
+
+    // create map layer
+    deaLayer = L.geoJSON(deaDataCache,{
+      style: f=>({weight:1,color:'#555',fillColor:'#ccc',fillOpacity:0.8}),
+      onEachFeature:(feature,layer)=>{
+        layer.on('click',()=>{
+          if(lastSelectedLayer && lastSelectedLayer!==layer) deaLayer.resetStyle(lastSelectedLayer);
+          lastSelectedLayer = layer;
+          layer.setStyle({weight:3,color:'#000',fillOpacity:1});
+          populateSidebar(feature);
+        });
+      }
+    }).addTo(map);
+
+    // Fit map to DEA data
+    initialBounds = deaLayer.getBounds();
+    map.fitBounds(initialBounds);
+
+    // Lock zoom out to DEA extent
+    const minZoom = map.getBoundsZoom(initialBounds,true);
+    map.setMinZoom(minZoom);
+
+  });
+
+/* ===========================
+   SIDEBAR & CHART
+=========================== */
+
+function populateSidebar(feature){
+  const cur = featureValueForYear(feature);
+  document.getElementById('sidebar-title').textContent = feature.properties.finalr_dea||'DEA';
+  document.getElementById('sidebar-meta').innerHTML = `Current: ${cur!=null?round1(cur)+' yrs':'n/a'}`;
+  buildChart(feature);
+  document.getElementById('sidebar').style.display='block';
+}
+
+function buildChart(feature){
+  const ctx = document.getElementById('deaChart').getContext('2d');
+  const dataPoints = years.map(y=>{ const r=(feature.properties.data||[]).find(d=>d.Sex===selectedSex && String(d.GroupedYear)===y); return r&&typeof r.Value==='number'?r.Value:null; });
+  if(deaChart) deaChart.destroy();
+  deaChart = new Chart(ctx,{type:'line',data:{labels:years,datasets:[{label:'DEA',data:dataPoints,borderColor:'#0078A8',fill:false}]},options:{responsive:true,maintainAspectRatio:false}});
 }
 
 /* ===========================
-   REST OF YOUR FUNCTIONS (sidebar, chart, legend, UI)
-   ===========================
-   Keep all the other helper and event functions unchanged
+   UI EVENTS
 =========================== */
+
+document.getElementById('year-slider').addEventListener('input',e=>{
+  currentYearIndex = Number(e.target.value);
+  updateYearLabel();
+  if(lastSelectedLayer) populateSidebar(lastSelectedLayer.feature);
+});
+
+document.getElementById('tab-males').addEventListener('click',()=>{
+  selectedSex='Males';
+  if(lastSelectedLayer) populateSidebar(lastSelectedLayer.feature);
+});
+
+document.getElementById('tab-females').addEventListener('click',()=>{
+  selectedSex='Females';
+  if(lastSelectedLayer) populateSidebar(lastSelectedLayer.feature);
+});
+
+document.getElementById('close-sidebar').addEventListener('click',()=>{
+  document.getElementById('sidebar').style.display='none';
+  if(lastSelectedLayer) deaLayer.resetStyle(lastSelectedLayer);
+  lastSelectedLayer=null;
+});
+
+}); // end DOMContentLoaded
 </script>
+
 </body>
 </html>
