@@ -81,14 +81,15 @@ body { margin:0; font-family:Arial,sans-serif; }
 
 <script>
 const geojsonUrl = 'DEA_data.geojson';
-const colors = ['#f7fcf0','#ccebc5','#a8ddb5','#7bccc4','#4eb3d3','#2b8cbe','#08589e'];
+const colors = ["#28326f","#25588e","#2285b3","#86bad4","#dee8f1"];
+
 
 let years=[], currentYearIndex=0, selectedSex='Males';
 let deaLayer, deaChart, deaData;
 let hoveredFeature=null, playInterval=null;
 
 /* MAP */
-const map = L.map('map',{minZoom:7,maxZoom:10}).setView([54.7,-6.6],8);
+const map = L.map('map',{minZoom:7.6,maxZoom:13.5}).setView([54.7,-6.6],8);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png').addTo(map);
 
 /* LEGEND */
