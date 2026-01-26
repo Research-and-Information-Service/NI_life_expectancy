@@ -410,6 +410,15 @@ function createLayer(geojson){
     onEachFeature:(f,layer)=>{
       const DEA=f.properties.finalr_dea;
 
+      
+// ⭐ Add tooltip
+  layer.bindTooltip(DEA, {
+    sticky: true,
+    direction: "top",
+    className: "dea-tooltip"
+  });
+
+
       layer.on("mouseover",()=>{
         layer.bringToFront();
         layer.setStyle({weight:3,color:"#000",fillOpacity:1});
