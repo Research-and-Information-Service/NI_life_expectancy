@@ -3,25 +3,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>NI DEA Life Expectancy Map</title>
 
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Chart.js -->
-  <script src="https://unpkg.com/chart.js@4.3.0/dist/chart.umd.js"></script>
-
- js-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js
-  <script>
-    Chart.register(window['chartjs-plugin-annotation']);
-  </script>
-
-  <!-- Turf.js (for fast centroid computation) -->
-  https://unpkg.com/@turf/turf@6.5.0/turf.min.js
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
     :root{
@@ -30,44 +17,31 @@
       --chart-height: 240px;
       --ui-bg: rgba(255,255,255,0.95);
       --accent: #0078A8;
-      --muted: #666;
     }
 
-    html,body{
-      height:100%;
-      margin:0;
-      font-family:Arial, sans-serif;
-    }
-
-    #map{ height:100vh; width:100%; }
+    html,body{height:100%;margin:0;font-family:Arial,sans-serif}
+    #map{height:100vh;width:100%}
 
     /* Controls */
     .controls{
-      position:absolute;
-      top:10px; left:10px;
+      position:absolute;top:10px;left:10px;
       width:var(--control-width);
       background:var(--ui-bg);
-      padding:10px;
-      border-radius:6px;
+      padding:10px;border-radius:6px;
       box-shadow:0 2px 6px rgba(0,0,0,.18);
       z-index:1100;
     }
-    .tabs{ display:flex; gap:6px; }
+    .tabs{display:flex;gap:6px}
     .tabs button{
-      flex:1; padding:6px; border:none;
-      background:#eee; border-radius:4px; cursor:pointer;
+      flex:1;padding:6px;border:none;background:#eee;
+      border-radius:4px;cursor:pointer;
     }
-    .tabs button.active{
-      background:var(--accent); color:white;
-    }
-
-    #year-slider{ width:100%; margin-top:10px; }
-    #year-label{ margin-top:6px; font-weight:bold; }
+    .tabs button.active{background:var(--accent);color:#fff}
+    #year-slider{width:100%;margin-top:10px}
+    #year-label{margin-top:6px;font-weight:bold}
     #play-btn{
-      width:100%; margin-top:10px;
-      padding:7px;
-      background:#eee; border:none; border-radius:4px;
-      cursor:pointer;
+      width:100%;margin-top:10px;padding:7px;border:none;
+      background:#eee;border-radius:4px;cursor:pointer;
     }
 
     /* Legend */
@@ -77,455 +51,522 @@
       padding:8px;
       box-shadow:0 1px 4px rgba(0,0,0,.15);
       font-size:13px;
+      line-height:1.3;
     }
-    .legend-item{
-      display:flex; align-items:center;
-      gap:6px; margin-bottom:4px;
-    }
-    .legend-swatch{
-      width:18px; height:14px; border-radius:3px;
-    }
+    .legend-item{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+    .legend-swatch{width:18px;height:14px;border-radius:3px}
 
     /* Sidebar */
     #sidebar{
-      position:absolute;
-      right:10px; top:10px;
+      position:absolute;right:10px;top:10px;
       width:var(--sidebar-width);
       max-height:calc(100vh - 20px);
       overflow-y:auto;
       background:var(--ui-bg);
-      padding:10px;
-      border-radius:6px;
+      padding:10px;border-radius:6px;
       box-shadow:0 2px 6px rgba(0,0,0,.18);
-      display:none;
-      z-index:1200;
+      display:none;z-index:1200;
     }
-    #chart-container{ height:var(--chart-height); }
+    #chart-container{height:var(--chart-height)}
 
-    /* Selected-label */
+    /* Label */
     .dea-label{
       background:rgba(255,255,255,0.9);
-      padding:6px 8px; font-weight:bold;
+      padding:6px 8px;font-weight:bold;
       border-radius:6px;
       box-shadow:0 2px 6px rgba(0,0,0,.35);
-      transform:translate(-50%, -50%);
+      transform:translate(-50%,-50%);
       pointer-events:none;
       white-space:nowrap;
     }
 
-    /* Responsive NI Assembly logo */
+    /* Responsive logo */
     #assembly-logo{
-      position:absolute;
-      bottom:10px; left:10px;
-      width:140px; max-width:40%;
-      height:auto;
-      opacity:0.95;
-      z-index:1300;
+      position:absolute;bottom:10px;left:10px;
+      width:140px;max-width:40%;
+      height:auto;opacity:.95;z-index:1300;
+      pointer-events:none;
     }
     @media(max-width:850px){
-      #assembly-logo{ width:110px; max-width:35%; }
-      :root{ --sidebar-width:300px; --chart-height:200px; }
+      #assembly-logo{width:110px;max-width:35%}
+      :root{--sidebar-width:300px;--chart-height:200px}
     }
     @media(max-width:600px){
-      #assembly-logo{ width:90px; max-width:30%; }
-      :root{ --control-width:200px; --sidebar-width:240px; }
-      .legend{ display:none; }
+      #assembly-logo{width:90px;max-width:30%}
+      :root{--control-width:200px;--sidebar-width:240px}
+      .legend{display:none}
     }
   </style>
 </head>
 
 <body>
 
-<!-- MAP -->
-<div id="map"></div>
+  <div id="map"></div>
+  <img id="assembly-logo" src="NI_Assembly.svg" alt="NI Assembly Logo"/>
 
-<!-- NI Assembly logo -->
-<img id="assembly-logo" src="NI_Assembly.svg" alt="NI Assembly Logo"/>
+  <div class="controls" id="controls">
+    <div class="tabs">
+      <button id="tab-males" class="active">Males</button>
+      <button id="tab-females">Females</button>
+    </div>
 
-<!-- Controls -->
-<div class="controls">
-  <div class="tabs">
-    <button id="tab-males" class="active">Males</button>
-    <button id="tab-females">Females</button>
+    <input type="range" id="year-slider" min="0" value="0" step="1"/>
+    <div id="year-label"></div>
+
+    <button id="play-btn">▶ Play Years</button>
   </div>
 
-  <input type="range" id="year-slider" min="0" value="0" step="1">
-  <div id="year-label"></div>
-
-  <button id="play-btn">▶ Play Years</button>
-</div>
-
-<!-- Sidebar -->
-<div id="sidebar">
-  <button id="close-sidebar" style="float:right">Close</button>
-  <h3 id="sidebar-title"></h3>
-  <div id="sidebar-meta"></div>
-
-  <div id="chart-container">
-    <canvas id="deaChart"></canvas>
+  <div id="sidebar">
+    <button id="close-sidebar" style="float:right">Close</button>
+    <h3 id="sidebar-title"></h3>
+    <div id="sidebar-meta"></div>
+    <div id="chart-container">
+      <canvas id="deaChart"></canvas>
+    </div>
   </div>
-</div>
 
-<script>
-/* ======== STATE ======== */
-const colors=["#28326f","#25588e","#2285b3","#86bad4","#dee8f1"];
-let selectedSex="Males";
-let years=[];
-let currentYearIndex=0;
+  <!-- Scripts (ORDER MATTERS) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/chart.js@4.3.0/dist/chart.umd.js"></script>
+  <script src="https://unpkg.com/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
-let deaLayer=null;
-let deaData=null;
+  <script>
+    // Register chart annotation plugin AFTER it loads
+    Chart.register(window["chartjs-plugin-annotation"]);
 
-let lastSelectedLayer=null;
-let selectedLabelMarker=null;
-let globalMin,globalMax,breaks=[];
-let niAverages=[];
-let deaValueMatrix={};
-let centroidCache={};
+    /* ============================
+       PERFORMANCE-OPTIMISED APP
+    ============================ */
 
-let deaChart=null;
-let playInterval=null;
+    const GEOJSON_URL = "DEA_data.geojson";
+    const SEXES = ["Males", "Females"];
+    const colors = ["#28326f","#25588e","#2285b3","#86bad4","#dee8f1"];
 
-/* Cache DOM */
-const elYearLabel=document.getElementById("year-label");
-const elYearSlider=document.getElementById("year-slider");
-const elSidebar=document.getElementById("sidebar");
+    // State
+    let selectedSex = "Males";
+    let years = [];
+    let currentYearIndex = 0;
 
-/* ======== MAP INIT ======== */
-const map=L.map("map",{preferCanvas:true});
-map.setView([54.7,-6.6],8);
+    // Leaflet
+    let map, deaLayer;
+    let lastSelectedLayer = null;
+    let selectedLabelMarker = null;
 
-L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",{
-  attribution:"&copy; OpenStreetMap & Carto"
-}).addTo(map);
+    // Chart
+    let deaChart = null;
+    let playInterval = null;
 
-/* ======== LEGEND ======== */
-const legend=L.control({position:"bottomright"});
-legend.onAdd=()=>{
-  const div=L.DomUtil.create("div","legend");
-  div.innerHTML=`
-    <div id="legend-title" style="font-weight:bold;margin-bottom:6px;"></div>
-    <div id="legend-body"></div>`;
-  return div;
-};
-legend.addTo(map);
+    // Caches
+    const valuesBySexDEAYear = { Males: {}, Females: {} };   // sex -> DEA -> year -> value
+    const centroidByDEA = {};                                 // DEA -> [lng,lat]
+    const statsBySex = { Males: null, Females: null };        // sex -> {globalMin, globalMax, breaks}
+    const niAvgBySex = { Males: [], Females: [] };            // sex -> array by year
 
-/* ======== LOAD DATA ======== */
-fetch("DEA_data.geojson")
-  .then(r=>r.json())
-  .then(data=>{
-    deaData=data;
+    // DOM cache
+    const elYearLabel = document.getElementById("year-label");
+    const elYearSlider = document.getElementById("year-slider");
+    const elSidebar = document.getElementById("sidebar");
 
-    /* extract years */
-    const yearSet=new Set();
-    data.features.forEach(f=>{
-      f.properties.data.forEach(d=>yearSet.add(String(d.GroupedYear)));
-    });
-    years=[...yearSet].sort();
-    elYearSlider.max=years.length-1;
-    elYearLabel.textContent=years[0];
+    /* ----------------------------
+       INIT MAP + LEGEND
+    ---------------------------- */
+    map = L.map("map", { preferCanvas: true }).setView([54.7, -6.6], 8);
 
-    /* Precompute DEA values + centroids */
-    data.features.forEach(f=>{
-      const DEA=f.properties.finalr_dea;
-      deaValueMatrix[DEA]={};
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",{
+      attribution:"&copy; OpenStreetMap & Carto"
+    }).addTo(map);
 
-      f.properties.data.forEach(d=>{
-        deaValueMatrix[DEA][String(d.GroupedYear)]=d.Value;
+    const legend = L.control({ position: "bottomright" });
+    legend.onAdd = () => {
+      const div = L.DomUtil.create("div", "legend");
+      div.innerHTML = `
+        <div id="legend-title" style="font-weight:bold;margin-bottom:6px;"></div>
+        <div id="legend-body"></div>
+      `;
+      return div;
+    };
+    legend.addTo(map);
+
+    // Prevent map drag/scroll when using controls
+    L.DomEvent.disableClickPropagation(document.getElementById("controls"));
+
+    /* ----------------------------
+       LOAD DATA + BUILD CACHES
+    ---------------------------- */
+    fetch(GEOJSON_URL)
+      .then(r => {
+        if (!r.ok) throw new Error(`GeoJSON fetch failed (${r.status}): ${r.statusText}`);
+        return r.json();
+      })
+      .then(data => {
+        // Extract years (once)
+        const yearSet = new Set();
+        data.features.forEach(f => {
+          (f.properties.data || []).forEach(d => yearSet.add(String(d.GroupedYear)));
+        });
+        years = [...yearSet].sort();
+        if (!years.length) throw new Error("No years found in GeoJSON properties.data");
+
+        elYearSlider.max = years.length - 1;
+        currentYearIndex = 0;
+        elYearSlider.value = 0;
+        elYearLabel.textContent = years[0];
+
+        // Build caches: valuesBySexDEAYear + centroidByDEA
+        data.features.forEach(f => {
+          const DEA = f.properties.finalr_dea || f.properties.DEA || f.properties.name || "Unknown DEA";
+
+          // centroid once (fast label placement)
+          const c = turf.centroid(f).geometry.coordinates; // [lng,lat]
+          centroidByDEA[DEA] = c;
+
+          (f.properties.data || []).forEach(d => {
+            const sex = d.Sex;
+            const year = String(d.GroupedYear);
+            const val = d.Value;
+
+            if (!SEXES.includes(sex)) return;
+            if (!valuesBySexDEAYear[sex][DEA]) valuesBySexDEAYear[sex][DEA] = {};
+            valuesBySexDEAYear[sex][DEA][year] = val;
+          });
+        });
+
+        // Precompute stats + NI averages per sex
+        SEXES.forEach(sex => {
+          const allVals = [];
+          Object.keys(valuesBySexDEAYear[sex]).forEach(DEA => {
+            years.forEach(y => {
+              const v = valuesBySexDEAYear[sex][DEA][y];
+              if (typeof v === "number") allVals.push(v);
+            });
+          });
+
+          const min0 = Math.min(...allVals);
+          const max0 = Math.max(...allVals);
+          const globalMin = Math.floor(min0 - 1);
+          const globalMax = Math.ceil(max0 + 1);
+
+          const step = (max0 - min0) / 5;
+          const breaks = [
+            round1(min0 + step),
+            round1(min0 + step * 2),
+            round1(min0 + step * 3),
+            round1(min0 + step * 4)
+          ];
+
+          statsBySex[sex] = { globalMin, globalMax, breaks };
+
+          niAvgBySex[sex] = years.map(y => {
+            const vals = [];
+            Object.keys(valuesBySexDEAYear[sex]).forEach(DEA => {
+              const v = valuesBySexDEAYear[sex][DEA][y];
+              if (typeof v === "number") vals.push(v);
+            });
+            return vals.length ? round1(vals.reduce((a,b)=>a+b,0) / vals.length) : null;
+          });
+        });
+
+        // Create layer
+        createLayer(data);
+        updateLegend();
+
+        // Fit + lock bounds
+        const bounds = deaLayer.getBounds();
+        map.fitBounds(bounds, { padding: [20,20] });
+        map.setMaxBounds(bounds.pad(0.1));
+        map.setMinZoom(map.getZoom());
+        map.options.maxBoundsViscosity = 1.0;
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Failed to load GeoJSON. Check console for details.\n\n" + err.message);
       });
 
-      /* Turf.js centroid */
-      const c=turf.centroid(f).geometry.coordinates;
-      centroidCache[DEA]=c;
-    });
+    /* ----------------------------
+       STYLE HELPERS
+    ---------------------------- */
+    function round1(v){ return Math.round(v * 10) / 10; }
 
-    /* Global bounds */
-    const allVals=data.features.flatMap(f=>
-      f.properties.data.map(d=>d.Value).filter(v=>v!=null)
-    );
-    globalMin=Math.floor(Math.min(...allVals)-1);
-    globalMax=Math.ceil(Math.max(...allVals)+1);
+    function currentYear(){ return years[currentYearIndex]; }
 
-    /* Global breaks */
-    const min0=Math.min(...allVals);
-    const max0=Math.max(...allVals);
-    const step=(max0-min0)/5;
-    breaks=[
-      round1(min0+step),
-      round1(min0+step*2),
-      round1(min0+step*3),
-      round1(min0+step*4)
-    ];
-
-    /* NI averages */
-    niAverages=years.map(y=>{
-      const vals=data.features.map(f=>deaValueMatrix[f.properties.finalr_dea][y]);
-      const numeric=vals.filter(v=>v!=null);
-      return round1(numeric.reduce((a,b)=>a+b,0)/numeric.length);
-    });
-
-    createLayer();
-    updateLegend();
-
-    /* lock map bounds */
-    const bounds=deaLayer.getBounds();
-    map.fitBounds(bounds,{padding:[20,20]});
-    map.setMaxBounds(bounds.pad(0.1));
-    map.setMinZoom(map.getZoom());
-    map.options.maxBoundsViscosity=1.0;
-  });
-
-/* ======== MAP STYLING ======== */
-function getColor(DEA){
-  const v=deaValueMatrix[DEA][years[currentYearIndex]];
-  if(v<=breaks[0]) return colors[0];
-  if(v<=breaks[1]) return colors[1];
-  if(v<=breaks[2]) return colors[2];
-  if(v<=breaks[3]) return colors[3];
-  return colors[4];
-}
-
-function styleFeature(f){
-  const DEA=f.properties.finalr_dea;
-  return{
-    weight:1,
-    color:"#555",
-    fillColor:getColor(DEA),
-    fillOpacity:0.85
-  };
-}
-
-function createLayer(){
-  deaLayer=L.geoJSON(deaData,{
-    style:styleFeature,
-    onEachFeature:(f,layer)=>{
-      const DEA=f.properties.finalr_dea;
-
-      layer.on("mouseover",()=>{
-        layer.bringToFront();
-        layer.setStyle({weight:3,color:"#000",fillOpacity:1});
-      });
-      layer.on("mouseout",()=>{
-        if(layer!==lastSelectedLayer){
-          deaLayer.resetStyle(layer);
-        }
-      });
-
-      layer.on("click",()=>{
-        if(lastSelectedLayer && lastSelectedLayer!==layer)
-          deaLayer.resetStyle(lastSelectedLayer);
-        lastSelectedLayer=layer;
-        layer.setStyle({weight:3,color:"#000",fillOpacity:1});
-        openSidebar(f);
-        updateLabel(DEA);
-      });
+    function getValue(DEA){
+      const y = currentYear();
+      const v = valuesBySexDEAYear[selectedSex]?.[DEA]?.[y];
+      return (typeof v === "number") ? v : null;
     }
-  }).addTo(map);
-}
 
-function updateStyles(){
-  deaLayer.setStyle(styleFeature);
-  if(lastSelectedLayer){
-    const DEA=lastSelectedLayer.feature.properties.finalr_dea;
-    lastSelectedLayer.setStyle({
-      weight:3,color:"#000",fillOpacity:1,
-      fillColor:getColor(DEA)
-    });
-  }
-  updateLegend();
-}
+    function getColorForDEA(DEA){
+      const v = getValue(DEA);
+      if (v == null) return "#ccc";
+      const b = statsBySex[selectedSex].breaks;
+      if (v <= b[0]) return colors[0];
+      if (v <= b[1]) return colors[1];
+      if (v <= b[2]) return colors[2];
+      if (v <= b[3]) return colors[3];
+      return colors[4];
+    }
 
-/* ======== LEGEND ======== */
-function updateLegend(){
-  document.getElementById("legend-title").textContent=
-    `${selectedSex} (${years[currentYearIndex]})`;
+    function styleFeature(feature){
+      const DEA = feature.properties.finalr_dea || feature.properties.DEA || feature.properties.name || "Unknown DEA";
+      return {
+        weight: 1,
+        color: "#555",
+        fillColor: getColorForDEA(DEA),
+        fillOpacity: 0.85
+      };
+    }
 
-  const labels=[
-    `${globalMin} – ${breaks[0]}`,
-    `${breaks[0]} – ${breaks[1]}`,
-    `${breaks[1]} – ${breaks[2]}`,
-    `${breaks[2]} – ${breaks[3]}`,
-    `> ${breaks[3]}`
-  ];
+    /* ----------------------------
+       LAYER + EVENTS
+    ---------------------------- */
+    function createLayer(geojson){
+      deaLayer = L.geoJSON(geojson, {
+        style: styleFeature,
+        onEachFeature: (feature, layer) => {
+          const DEA = feature.properties.finalr_dea || feature.properties.DEA || feature.properties.name || "Unknown DEA";
 
-  document.getElementById("legend-body").innerHTML=
-    labels.map((lbl,i)=>`
-      <div class="legend-item">
-        <div class="legend-swatch" style="background:${colors[i]}"></div>
-        <div>${lbl}</div>
-      </div>`).join("");
-}
+          layer.on("mouseover", () => {
+            layer.bringToFront();
+            layer.setStyle({ weight: 3, color: "#000", fillOpacity: 1 });
+          });
 
-/* ======== LABEL ======== */
-function updateLabel(DEA){
-  if(selectedLabelMarker) map.removeLayer(selectedLabelMarker);
-  const coords=centroidCache[DEA];
-  const val=deaValueMatrix[DEA][years[currentYearIndex]];
+          layer.on("mouseout", () => {
+            if (layer !== lastSelectedLayer) deaLayer.resetStyle(layer);
+          });
 
-  selectedLabelMarker=L.marker([coords[1],coords[0]],{
-    icon:L.divIcon({
-      html:`<div class="dea-label">${val==null?'n/a':round1(val)}</div>`,
-      className:"",
-      iconSize:null
-    }),
-    interactive:false
-  }).addTo(map);
-}
+          layer.on("click", () => {
+            if (lastSelectedLayer && lastSelectedLayer !== layer) deaLayer.resetStyle(lastSelectedLayer);
+            lastSelectedLayer = layer;
 
-/* ======== SIDEBAR + CHART ======== */
-function openSidebar(feature){
-  const DEA=feature.properties.finalr_dea;
+            layer.setStyle({ weight: 3, color: "#000", fillOpacity: 1 });
 
-  document.getElementById("sidebar-title").textContent=`DEA – ${DEA}`;
-  const cur=deaValueMatrix[DEA][years[currentYearIndex]];
+            openSidebar(DEA);
+            updateLabel(DEA);
+          });
+        }
+      }).addTo(map);
+    }
 
-  document.getElementById("sidebar-meta").innerHTML=
-    `<strong>${selectedSex}</strong><br>
-     Period: ${years[0]} → ${years[years.length-1]}<br>
-     Current (${years[currentYearIndex]}): ${cur==null?'n/a':round1(cur)+' yrs'}`;
+    function updateStyles(){
+      if (!deaLayer) return;
+      deaLayer.setStyle(styleFeature);
 
-  buildOrUpdateChart(DEA);
-  elSidebar.style.display="block";
-}
+      if (lastSelectedLayer){
+        const DEA = lastSelectedLayer.feature.properties.finalr_dea || lastSelectedLayer.feature.properties.DEA || lastSelectedLayer.feature.properties.name || "Unknown DEA";
+        lastSelectedLayer.setStyle({
+          weight: 3, color: "#000", fillOpacity: 1,
+          fillColor: getColorForDEA(DEA)
+        });
+      }
+      updateLegend();
+    }
 
-function buildOrUpdateChart(DEA){
-  const deaVals=years.map(y=>deaValueMatrix[DEA][y] ?? null);
+    /* ----------------------------
+       LEGEND
+    ---------------------------- */
+    function updateLegend(){
+      const s = statsBySex[selectedSex];
+      document.getElementById("legend-title").textContent = `${selectedSex} (${currentYear()})`;
 
-  if(!deaChart){
-    const ctx=document.getElementById("deaChart").getContext("2d");
-    deaChart=new Chart(ctx,{
-      type:"line",
-      data:{
-        labels:years,
-        datasets:[
-          {
-            label:"DEA",
-            data:deaVals,
-            borderColor:"#0078A8",
-            backgroundColor:"rgba(0,120,168,0.15)",
-            fill:true,
-            pointRadius:3
-          },
-          {
-            label:"NI Average",
-            data:niAverages,
-            borderColor:"#444",
-            borderDash:[5,5],
-            fill:false,
-            pointRadius:0
-          }
-        ]
-      },
-      options:{
-        animation:false,
-        responsive:true,
-        maintainAspectRatio:false,
-        scales:{
-          y:{min:globalMin,max:globalMax}
-        },
-        plugins:{
-          legend:{display:false},
-          annotation:{
-            annotations:{
-              cur:{
-                type:"line",
-                xMin:currentYearIndex,
-                xMax:currentYearIndex,
-                borderColor:"#000",
-                borderDash:[4,4]
+      const labels = [
+        `${s.globalMin} – ${s.breaks[0]}`,
+        `${s.breaks[0]} – ${s.breaks[1]}`,
+        `${s.breaks[1]} – ${s.breaks[2]}`,
+        `${s.breaks[2]} – ${s.breaks[3]}`,
+        `> ${s.breaks[3]}`
+      ];
+
+      document.getElementById("legend-body").innerHTML =
+        labels.map((lbl,i)=>`
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:${colors[i]}"></div>
+            <div>${lbl}</div>
+          </div>`).join("");
+    }
+
+    /* ----------------------------
+       LABEL (CENTROID CACHE)
+    ---------------------------- */
+    function updateLabel(DEA){
+      if (selectedLabelMarker) map.removeLayer(selectedLabelMarker);
+
+      const coords = centroidByDEA[DEA]; // [lng,lat]
+      if (!coords) return;
+
+      const v = getValue(DEA);
+      selectedLabelMarker = L.marker([coords[1], coords[0]], {
+        icon: L.divIcon({
+          html: `<div class="dea-label">${v==null ? "n/a" : round1(v)}</div>`,
+          className: "",
+          iconSize: null
+        }),
+        interactive: false
+      }).addTo(map);
+    }
+
+    /* ----------------------------
+       SIDEBAR + CHART (REUSE)
+    ---------------------------- */
+    function openSidebar(DEA){
+      const v = getValue(DEA);
+
+      document.getElementById("sidebar-title").textContent = `DEA – ${DEA}`;
+      document.getElementById("sidebar-meta").innerHTML =
+        `<strong>${selectedSex}</strong><br>
+         Period: ${years[0]} → ${years[years.length-1]}<br>
+         Current (${currentYear()}): ${v==null ? "n/a" : round1(v) + " yrs"}`;
+
+      buildOrUpdateChart(DEA);
+      elSidebar.style.display = "block";
+    }
+
+    function buildOrUpdateChart(DEA){
+      const s = statsBySex[selectedSex];
+      const deaVals = years.map(y => valuesBySexDEAYear[selectedSex]?.[DEA]?.[y] ?? null);
+      const niVals  = niAvgBySex[selectedSex];
+
+      const annotationLine = () => ({
+        type: "line",
+        xMin: currentYearIndex,
+        xMax: currentYearIndex,
+        borderColor: "#000",
+        borderDash: [4,4],
+        borderWidth: 1
+      });
+
+      if (!deaChart){
+        const ctx = document.getElementById("deaChart").getContext("2d");
+        deaChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: years,
+            datasets: [
+              {
+                label: "DEA",
+                data: deaVals,
+                borderColor: "#0078A8",
+                backgroundColor: "rgba(0,120,168,0.15)",
+                fill: true,
+                pointRadius: 3,
+                tension: 0.25
+              },
+              {
+                label: "NI Average",
+                data: niVals,
+                borderColor: "#444",
+                borderDash: [5,5],
+                fill: false,
+                pointRadius: 0,
+                tension: 0.25
               }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            scales: {
+              x: { title: { display: true, text: "Period" } },
+              y: { title: { display: true, text: "HLE (years)" }, min: s.globalMin, max: s.globalMax }
+            },
+            plugins: {
+              legend: { display: false },
+              annotation: { annotations: { cur: annotationLine() } }
             }
           }
-        }
+        });
+      } else {
+        // Update (fast)
+        deaChart.data.datasets[0].data = deaVals;
+        deaChart.data.datasets[1].data = niVals;
+
+        deaChart.options.scales.y.min = s.globalMin;
+        deaChart.options.scales.y.max = s.globalMax;
+
+        deaChart.options.plugins.annotation.annotations.cur.xMin = currentYearIndex;
+        deaChart.options.plugins.annotation.annotations.cur.xMax = currentYearIndex;
+
+        deaChart.update();
       }
-    });
-  } else {
-    /* update instead of recreate */
-    deaChart.data.datasets[0].data=deaVals;
-    deaChart.data.datasets[1].data=niAverages;
+    }
 
-    deaChart.options.plugins.annotation.annotations.cur.xMin=currentYearIndex;
-    deaChart.options.plugins.annotation.annotations.cur.xMax=currentYearIndex;
-
-    deaChart.update();
-  }
-}
-
-/* ======== UI EVENTS ======== */
-document.getElementById("tab-males").onclick=()=>{
-  selectedSex="Males";
-  updateGeometryAfterSexChange();
-};
-document.getElementById("tab-females").onclick=()=>{
-  selectedSex="Females";
-  updateGeometryAfterSexChange();
-};
-
-function updateGeometryAfterSexChange(){
-  /* No dynamic vs global break: everything is global-only */
-  updateStyles();
-  if(lastSelectedLayer){
-    const DEA=lastSelectedLayer.feature.properties.finalr_dea;
-    openSidebar(lastSelectedLayer.feature);
-    updateLabel(DEA);
-  }
-}
-
-elYearSlider.oninput=e=>{
-  currentYearIndex=+e.target.value;
-  elYearLabel.textContent=years[currentYearIndex];
-  updateStyles();
-  if(deaChart){
-    deaChart.options.plugins.annotation.annotations.cur.xMin=currentYearIndex;
-    deaChart.options.plugins.annotation.annotations.cur.xMax=currentYearIndex;
-    deaChart.update();
-  }
-  if(lastSelectedLayer){
-    const DEA=lastSelectedLayer.feature.properties.finalr_dea;
-    updateLabel(DEA);
-    openSidebar(lastSelectedLayer.feature);
-  }
-};
-
-document.getElementById("play-btn").onclick=()=>{
-  if(playInterval){
-    clearInterval(playInterval);
-    playInterval=null;
-    document.getElementById("play-btn").textContent="▶ Play Years";
-    return;
-  }
-
-  document.getElementById("play-btn").textContent="⏸ Pause";
-
-  playInterval=setInterval(()=>{
-    currentYearIndex=(currentYearIndex+1)%years.length;
-    elYearSlider.value=currentYearIndex;
-    elYearLabel.textContent=years[currentYearIndex];
-    updateStyles();
-    if(deaChart){
-      deaChart.options.plugins.annotation.annotations.cur.xMin=currentYearIndex;
-      deaChart.options.plugins.annotation.annotations.cur.xMax=currentYearIndex;
+    function updateChartYear(){
+      if (!deaChart) return;
+      deaChart.options.plugins.annotation.annotations.cur.xMin = currentYearIndex;
+      deaChart.options.plugins.annotation.annotations.cur.xMax = currentYearIndex;
       deaChart.update();
     }
-    if(lastSelectedLayer){
-      const DEA=lastSelectedLayer.feature.properties.finalr_dea;
-      updateLabel(DEA);
-      openSidebar(lastSelectedLayer.feature);
+
+    /* ----------------------------
+       UI EVENTS
+    ---------------------------- */
+    document.getElementById("tab-males").onclick = () => {
+      selectedSex = "Males";
+      document.getElementById("tab-males").classList.add("active");
+      document.getElementById("tab-females").classList.remove("active");
+      onStateChanged();
+    };
+
+    document.getElementById("tab-females").onclick = () => {
+      selectedSex = "Females";
+      document.getElementById("tab-females").classList.add("active");
+      document.getElementById("tab-males").classList.remove("active");
+      onStateChanged();
+    };
+
+    elYearSlider.oninput = (e) => {
+      currentYearIndex = Number(e.target.value);
+      elYearLabel.textContent = currentYear();
+      updateStyles();
+      updateChartYear();
+      if (lastSelectedLayer){
+        const DEA = lastSelectedLayer.feature.properties.finalr_dea || lastSelectedLayer.feature.properties.DEA || lastSelectedLayer.feature.properties.name || "Unknown DEA";
+        updateLabel(DEA);
+        openSidebar(DEA);
+      }
+    };
+
+    document.getElementById("play-btn").onclick = () => {
+      const btn = document.getElementById("play-btn");
+      if (playInterval){
+        clearInterval(playInterval);
+        playInterval = null;
+        btn.textContent = "▶ Play Years";
+        return;
+      }
+      btn.textContent = "⏸ Pause";
+      playInterval = setInterval(() => {
+        currentYearIndex = (currentYearIndex + 1) % years.length;
+        elYearSlider.value = currentYearIndex;
+        elYearLabel.textContent = currentYear();
+        updateStyles();
+        updateChartYear();
+        if (lastSelectedLayer){
+          const DEA = lastSelectedLayer.feature.properties.finalr_dea || lastSelectedLayer.feature.properties.DEA || lastSelectedLayer.feature.properties.name || "Unknown DEA";
+          updateLabel(DEA);
+          openSidebar(DEA);
+        }
+      }, 1400);
+    };
+
+    document.getElementById("close-sidebar").onclick = () => {
+      elSidebar.style.display = "none";
+      if (lastSelectedLayer) deaLayer.resetStyle(lastSelectedLayer);
+      lastSelectedLayer = null;
+      if (selectedLabelMarker) map.removeLayer(selectedLabelMarker);
+    };
+
+    function onStateChanged(){
+      updateStyles();
+      updateChartYear();
+      if (lastSelectedLayer){
+        const DEA = lastSelectedLayer.feature.properties.finalr_dea || lastSelectedLayer.feature.properties.DEA || lastSelectedLayer.feature.properties.name || "Unknown DEA";
+        updateLabel(DEA);
+        openSidebar(DEA);
+      }
     }
-  },1400);
-};
-
-document.getElementById("close-sidebar").onclick=()=>{
-  elSidebar.style.display="none";
-  if(lastSelectedLayer) deaLayer.resetStyle(lastSelectedLayer);
-  lastSelectedLayer=null;
-  if(selectedLabelMarker) map.removeLayer(selectedLabelMarker);
-};
-
-/* ======== Utilities ======== */
-function round1(v){ return Math.round(v*10)/10; }
-
-</script>
-
+  </script>
 </body>
 </html>
+``
