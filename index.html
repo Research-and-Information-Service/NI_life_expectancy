@@ -348,27 +348,14 @@ fetch(geojsonUrl)
     updateYearLabel();
 
     computeGlobalBounds();
-   computeGlobalBreaks();
+    if (yAxisMode === 'fixed') computeGlobalBreaks();
+    else computeBreaks();
 
-  
-createMapLayer();
-updateLegend();
+    createMapLayer();
+    updateLegend();
 
-const deaBounds = deaLayer.getBounds();
-map.fitBounds(deaBounds, { padding: [18, 18] });
-
-// ✅ Restrict pan/drag to DEA bounds (with a little padding)
-map.setMaxBounds(deaBounds.pad(0.05));
-
-// ✅ Prevent zooming out beyond the DEA extent
-map.options.minZoom = map.getBoundsZoom(deaBounds, true);
-map.setMinZoom(map.options.minZoom);
-
-// Optional: also restrict how far in users can zoom (pick a number you like)
-map.setMaxZoom(14);
-
-showSpinner(false);
-
+    map.fitBounds(deaLayer.getBounds(), {padding:[18,18]});
+    showSpinner(false);
   })
   .catch(err=>{
     console.error(err);
@@ -783,7 +770,17 @@ document.getElementById('play-btn').addEventListener('click', () => {
 
 });
 
-
+/* Data display radios */
+document.querySelectorAll('input[name="yaxis"]').forEach(r => {
+  r.addEventListener('change', e => {
+    yAxisMode = e.target.value;
+    if (yAxisMode === 'fixed') { computeGlobalBounds(); computeGlobalBreaks(); }
+    else computeBreaks();
+    updateMapStyles();
+    if (lastSelectedLayer) populateSidebar(lastSelectedLayer.feature);
+    refreshSelectedLabel();
+  });
+});
 
 /* Controls collapse */
 document.getElementById('controls-toggle').addEventListener('click', () => {
