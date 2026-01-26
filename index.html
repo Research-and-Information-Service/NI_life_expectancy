@@ -7,8 +7,9 @@
   <title>NI DEA Life Expectancy Map</title>
 
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
+  <!-- Styles -->
   <style>
     :root{
       --control-width: 220px;
@@ -19,8 +20,7 @@
     }
 
     html,body{
-      height:100%;
-      margin:0;
+      height:100%; margin:0;
       font-family:Arial, sans-serif;
     }
 
@@ -120,9 +120,9 @@
       z-index:1200;
     }
 
-    /* The TOP block contains NI legend (NOT inside chart container) */
+    /* NI legend block ABOVE chart */
     #chart-container-top{
-      margin-top:12px;  /* spacing from “Current” */
+      margin-top:12px;
       margin-bottom:8px;
     }
 
@@ -153,7 +153,7 @@
       border-radius:2px;
     }
 
-    /* Chart container (fixed height restored) */
+    /* Chart container */
     #chart-container{
       height:var(--chart-height);
       position:relative;
@@ -202,8 +202,11 @@
 
 <body>
 
+<!-- MAP -->
 <div id="map"></div>
-<img id="assembly-logo" src="NI_Assembly.svg" alt="NI Assembly"/>
+
+<!-- NI Assembly logo -->
+<img id="assembly-logo" src="NI_Assembly.svg" alt="NI Assembly Logo"/>
 
 <!-- Controls -->
 <div class="controls">
@@ -229,7 +232,7 @@
   <h3 id="sidebar-title"></h3>
   <div id="sidebar-meta"></div>
 
-  <!-- NEW SEPARATED BLOCK ABOVE CHART -->
+  <!-- NI legend ABOVE chart -->
   <div id="chart-container-top">
     <div id="ni-average-legend">
       <span class="ni-average-text">NI average:</span>
@@ -237,21 +240,26 @@
     </div>
   </div>
 
-  <!-- FIXED-HEIGHT CHART AREA -->
+  <!-- Fixed-height chart -->
   <div id="chart-container">
     <canvas id="deaChart"></canvas>
   </div>
 </div>
 
-/chart.js@4.3.0/dist/chart.umd.js
+<!-- JS Libraries -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/chart.js@4.3.0/dist/chart.umd.js"></script>
 <script src="https://unpkg.com/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
-<script> Chart.register(window['chartjs-plugin-annotation']); </script>
+<script>
+  Chart.register(window['chartjs-plugin-annotation']);
+</script>
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
+<!-- MAIN APP SCRIPT -->
 <script>
-/****************************************************************************************
- FULL JS — identical to your performance‑optimised version, with Period label + safe fixes
-****************************************************************************************/
+/******************************************************************************************
+ FULL, CLEAN, VALID, WORKING APPLICATION CODE
+******************************************************************************************/
 
 const GEOJSON_URL = "DEA_data.geojson";
 const SEXES = ["Males","Females"];
@@ -268,7 +276,7 @@ let selectedLabelMarker=null;
 let deaChart=null;
 let playInterval=null;
 
-const valuesBySexDEAYear={Males:{},Females:{}};
+const valuesBySexDEAYear={Males:{},Females:{},};
 const centroidByDEA={};
 const statsBySex={Males:null,Females:null};
 const niAvgBySex={Males:[],Females:[]};
@@ -339,10 +347,10 @@ fetch(GEOJSON_URL)
 
       const step=(max-min)/5;
       const breaks=[
-        round(min+step),
-        round(min+2*step),
-        round(min+3*step),
-        round(min+4*step)
+        r(min+step),
+        r(min+2*step),
+        r(min+3*step),
+        r(min+4*step)
       ];
 
       statsBySex[sex]={globalMin,globalMax,breaks};
@@ -353,7 +361,7 @@ fetch(GEOJSON_URL)
           const v=valuesBySexDEAYear[sex][DEA][y];
           if(typeof v==="number") rowVals.push(v);
         });
-        return round(rowVals.reduce((a,b)=>a+b,0)/rowVals.length);
+        return r(rowVals.reduce((a,b)=>a+b,0)/rowVals.length);
       });
     });
 
@@ -368,7 +376,7 @@ fetch(GEOJSON_URL)
   });
 
 /* ------------ Helpers ------------ */
-function round(v){return Math.round(v*10)/10;}
+function r(v){return Math.round(v*10)/10;}
 function currentYear(){return years[currentYearIndex];}
 
 function getValue(DEA){
@@ -468,7 +476,7 @@ function updateLabel(DEA){
 
   selectedLabelMarker=L.marker([coords[1],coords[0]],{
     icon:L.divIcon({
-      html:`<div class="dea-label">${v==null?'n/a':round(v)}</div>`,
+      html:`<div class="dea-label">${v==null?'n/a':r(v)}</div>`,
       className:"",
       iconSize:null
     }),
@@ -484,7 +492,7 @@ function openSidebar(DEA){
   document.getElementById("sidebar-meta").innerHTML=
     `<strong>${selectedSex}</strong><br>
      Period: ${years[0]} → ${years[years.length-1]}<br>
-     Current (${currentYear()}): ${v==null?'n/a':round(v)+' yrs'}`;
+     Current (${currentYear()}): ${v==null?'n/a':r(v)+' yrs'}`;
 
   buildOrUpdateChart(DEA);
   elSidebar.style.display="block";
