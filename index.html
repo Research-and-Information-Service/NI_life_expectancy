@@ -18,6 +18,31 @@
       --ui-bg: rgba(255,255,255,0.95);
       --accent: #0078A8;
     }
+    
+/* Mini legend above the chart */
+#ni-average-legend{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #444;
+  margin-bottom: 6px;
+  margin-left: 2px; /* slight indent to align with chart axis */
+}
+
+#ni-average-legend .ni-average-line{
+  flex: 0 0 140px;                 /* width of the dashed sample */
+  height: 3px;
+  background: repeating-linear-gradient(
+    to right,
+    #444 0px,
+    #444 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  border-radius: 2px;
+}
 
     html,body{height:100%;margin:0;font-family:Arial,sans-serif}
     #map{height:100vh;width:100%}
@@ -120,9 +145,18 @@
     <button id="close-sidebar" style="float:right">Close</button>
     <h3 id="sidebar-title"></h3>
     <div id="sidebar-meta"></div>
-    <div id="chart-container">
-      <canvas id="deaChart"></canvas>
-    </div>
+    
+<div id="chart-container">
+
+  <!-- NI Average Mini-Legend (matches screenshot) -->
+  <div id="ni-average-legend">
+    <span class="ni-average-text">NI average:</span>
+    <span class="ni-average-line"></span>
+  </div>
+
+  <canvas id="deaChart"></canvas>
+</div>
+
   </div>
 
   <!-- Scripts (ORDER MATTERS) -->
